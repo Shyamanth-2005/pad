@@ -1,0 +1,93 @@
+pad_detected_examples
+
+// 1. SYN_05840 — Mild to moderate PAD — confidence 99.2%
+{
+  "Age": 77, "Sex": "Female", "Race": "Non-Hispanic Black", "BMI": 31.3,
+  "Smoking": "Former", "Diabetes": "Yes", "HbA1c": 7.7,
+  "SBP": 159.6, "DBP": 82.9, "Total_Cholesterol": 238, "HDL": 52,
+  "Medical_History_Hypertension": "Yes",
+  "ABI": 0.66
+}
+
+// 2. SYN_48022 — Normal — confidence 98.7%
+{
+  "Age": 83, "Sex": "Male", "Race": "Non-Hispanic Black", "BMI": 31.9,
+  "Smoking": "Former", "Diabetes": "Yes", "HbA1c": 6.7,
+  "SBP": 164, "DBP": 52.6, "Total_Cholesterol": 158, "HDL": 45,
+  "Medical_History_Hypertension": "Yes",
+  "ABI": 1.24
+}
+
+// 3. SYN_32146 — Non-compressible — confidence 98.1%
+{
+  "Age": 78, "Sex": "Male", "Race": "Mexican American", "BMI": 26.5,
+  "Smoking": "Former", "Diabetes": "Yes", "HbA1c": 5.7,
+  "SBP": 156.7, "DBP": 63.6, "Total_Cholesterol": 201, "HDL": 59,
+  "Medical_History_Hypertension": "Yes",
+  "ABI": 1.49
+}
+
+// 4. SYN_46121 — Borderline — confidence 97.7%
+{
+  "Age": 74, "Sex": "Male", "Race": "Mexican American", "BMI": 29.5,
+  "Smoking": "Former", "Diabetes": "Yes", "HbA1c": 9.1,
+  "SBP": 154.4, "DBP": 65.2, "Total_Cholesterol": 206, "HDL": 63,
+  "Medical_History_Hypertension": "Yes",
+  "ABI": 0.97
+}
+
+// 5. SYN_16232 — Severe PAD — confidence 97.3%
+{
+  "Age": 81, "Sex": "Female", "Race": "Non-Hispanic White", "BMI": 31.8,
+  "Smoking": "Current", "Diabetes": "No", "HbA1c": 6.3,
+  "SBP": 187.7, "DBP": 58.7, "Total_Cholesterol": 297, "HDL": 29,
+  "Medical_History_Hypertension": "Yes",
+  "ABI": 0.4
+}
+
+No PAD detected
+
+// 1. SYN_14252 — Normal — confidence 99.7%
+{
+  "Age": 22, "Sex": "Male", "Race": "Non-Hispanic White", "BMI": 14,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 4.7,
+  "SBP": 129.3, "DBP": 80.8, "Total_Cholesterol": 137, "HDL": 41,
+  "Medical_History_Hypertension": "No",
+  "ABI": 1.24
+}
+
+// 2. SYN_22949 — Borderline — confidence 99.6%
+{
+  "Age": 23, "Sex": "Female", "Race": "Mexican American", "BMI": 15.6,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 4.3,
+  "SBP": 105.4, "DBP": 73.7, "Total_Cholesterol": 171, "HDL": 67,
+  "Medical_History_Hypertension": "No",
+  "ABI": 0.96
+}
+
+// 3. SYN_47696 — Non-compressible — confidence 98.6%
+{
+  "Age": 26, "Sex": "Male", "Race": "Non-Hispanic Black", "BMI": 23,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 4.9,
+  "SBP": 98.4, "DBP": 78.2, "Total_Cholesterol": 131, "HDL": 61,
+  "Medical_History_Hypertension": "No",
+  "ABI": 1.43
+}
+
+// 4. SYN_26241 — Mild to moderate PAD — confidence 88.5%
+{
+  "Age": 50, "Sex": "Male", "Race": "Mexican American", "BMI": 23.4,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 5.6,
+  "SBP": 110.8, "DBP": 55.2, "Total_Cholesterol": 228, "HDL": 73,
+  "Medical_History_Hypertension": "No",
+  "ABI": 0.88
+}
+
+// 5. SYN_37934 — Normal — confidence 99.7%
+{
+  "Age": 18, "Sex": "Male", "Race": "Non-Hispanic White", "BMI": 26.9,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 5.2,
+  "SBP": 119.7, "DBP": 61.9, "Total_Cholesterol": 122, "HDL": 42,
+  "Medical_History_Hypertension": "No",
+  "ABI": 1.13
+}
