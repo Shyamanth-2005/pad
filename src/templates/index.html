@@ -17,7 +17,17 @@
      models score the record together; the ABI grades severity.</p>
 </header>
 
-<main class="workspace">
+<nav class="tabs" role="tablist" aria-label="Input source">
+  <button type="button" role="tab" id="tab-clinical" aria-controls="panel-clinical"
+          aria-selected="true">Clinical</button>
+  <button type="button" role="tab" id="tab-sensor" aria-controls="panel-sensor"
+          aria-selected="false" tabindex="-1">Sensor</button>
+  <button type="button" role="tab" id="tab-medical" aria-controls="panel-medical"
+          aria-selected="false" tabindex="-1">Medical</button>
+</nav>
+
+<main class="workspace" id="panel-clinical" role="tabpanel"
+      aria-labelledby="tab-clinical" tabindex="0">
 
   <form id="intake" class="intake" novalidate>
 
@@ -95,8 +105,7 @@
       <div class="fields">
         <label class="field">
           <span>Smoking</span>
-          <select name="Smoking">
-            <option value="">Not known</option>
+          <select name="Smoking" required>
             <option>Never</option>
             <option>Former</option>
             <option>Current</option>
@@ -204,6 +213,16 @@
   </aside>
 
 </main>
+
+<section class="stub" id="panel-sensor" role="tabpanel"
+         aria-labelledby="tab-sensor" tabindex="0" hidden>
+  <p>Sensor input is not wired up yet.</p>
+</section>
+
+<section class="stub" id="panel-medical" role="tabpanel"
+         aria-labelledby="tab-medical" tabindex="0" hidden>
+  <p>Medical input is not wired up yet.</p>
+</section>
 
 <footer class="footnote">
   <p>Screening support only. Not a diagnosis. Decisions stay with the clinician.</p>

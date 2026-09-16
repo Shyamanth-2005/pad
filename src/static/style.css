@@ -21,6 +21,9 @@
 
 * { box-sizing: border-box; }
 
+/* Beats the display rules below, which would otherwise unhide [hidden] panels. */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--paper);
@@ -42,8 +45,7 @@ body {
 .masthead {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 56px 32px 28px;
-  border-bottom: 1px solid var(--rule);
+  padding: 56px 32px 24px;
 }
 .masthead h1 {
   margin: 0 0 10px;
@@ -58,6 +60,40 @@ body {
   max-width: 62ch;
   color: var(--ink-soft);
 }
+
+/* ---------------------------------------------------------- tabs */
+
+.tabs {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 32px;
+  display: flex;
+  gap: 2px;
+  border-bottom: 1px solid var(--rule);
+}
+.tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  margin-bottom: -1px;
+  padding: 11px 14px;
+  color: var(--ink-faint);
+}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] {
+  color: var(--accent-ink);
+  border-bottom-color: var(--accent);
+}
+
+/* Placeholder panels for sources that are not wired up yet. */
+.stub {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 48px 32px;
+  min-height: 320px;
+}
+.stub p { margin: 0; color: var(--ink-faint); }
 
 /* ---------------------------------------------------------- layout */
 
@@ -311,8 +347,8 @@ button {
 @media (max-width: 900px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .readout { position: static; }
-  .masthead { padding: 36px 20px 22px; }
-  .workspace, .footnote { padding-inline: 20px; }
+  .masthead { padding: 36px 20px 18px; }
+  .workspace, .footnote, .tabs, .stub { padding-inline: 20px; }
 }
 @media (max-width: 520px) {
   .fields { grid-template-columns: minmax(0, 1fr); }

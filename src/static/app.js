@@ -17,8 +17,7 @@ const confidenceNote = document.getElementById("confidence-note");
 const ratio = document.getElementById("ratio");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
-const OPTIONAL = new Set(["HbA1c", "Smoking", "Diabetes",
-                          "Medical_History_Hypertension"]);
+const OPTIONAL = new Set(["HbA1c", "Diabetes", "Medical_History_Hypertension"]);
 const NUMERIC = new Set(["Age", "BMI", "HbA1c", "SBP", "DBP",
                          "Total_Cholesterol", "HDL", "ABI"]);
 
@@ -126,5 +125,30 @@ form.addEventListener("submit", async (event) => {
     runButton.textContent = "Run screening";
   }
 });
+
+// ---------------------------------------------------------------- tabs
+
+const tabs = [...document.querySelectorAll('[role="tab"]')];
+
+function selectTab(tab) {
+  for (const other of tabs) {
+    const chosen = other === tab;
+    other.setAttribute("aria-selected", String(chosen));
+    other.tabIndex = chosen ? 0 : -1;
+    document.getElementById(other.getAttribute("aria-controls")).hidden = !chosen;
+  }
+  tab.focus();
+}
+
+for (const tab of tabs) {
+  tab.addEventListener("click", () => selectTab(tab));
+  tab.addEventListener("keydown", (event) => {
+    const step = { ArrowRight: 1, ArrowLeft: -1, Home: -tabs.length, End: tabs.length };
+    if (!(event.key in step)) return;
+    event.preventDefault();
+    const next = Math.min(Math.max(tabs.indexOf(tab) + step[event.key], 0), tabs.length - 1);
+    selectTab(tabs[next]);
+  });
+}
 
 updateRatio();
