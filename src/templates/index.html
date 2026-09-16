@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PAD Screening</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header class="masthead">
+  <h1>Peripheral arterial disease screening</h1>
+  <p>Enter the clinical record and the measured ankle-brachial index. Three trained
+     models score the record together; the ABI grades severity.</p>
+</header>
+
+<main class="workspace">
+
+  <form id="intake" class="intake" novalidate>
+
+    <fieldset class="group">
+      <legend>Person</legend>
+      <div class="fields">
+        <label class="field">
+          <span>Age</span>
+          <input type="number" name="Age" min="18" max="85" step="1" value="64" required>
+          <em>18 to 85 years</em>
+        </label>
+        <label class="field">
+          <span>Sex</span>
+          <select name="Sex" required>
+            <option>Female</option>
+            <option>Male</option>
+          </select>
+        </label>
+        <label class="field field-wide">
+          <span>Race or ethnicity</span>
+          <select name="Race" required>
+            <option>Non-Hispanic White</option>
+            <option>Non-Hispanic Black</option>
+            <option>Mexican American</option>
+            <option>Other Hispanic</option>
+            <option>Other/Multi-racial</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Body mass index</span>
+          <input type="number" name="BMI" min="14" max="60" step="0.1" value="27.5" required>
+          <em>kg/m&sup2;</em>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend>Blood pressure and lipids</legend>
+      <div class="fields">
+        <label class="field">
+          <span>Systolic pressure</span>
+          <input type="number" name="SBP" min="70" max="240" step="0.1" value="128" required>
+          <em>mmHg</em>
+        </label>
+        <label class="field">
+          <span>Diastolic pressure</span>
+          <input type="number" name="DBP" min="30" max="130" step="0.1" value="76" required>
+          <em>mmHg</em>
+        </label>
+        <label class="field">
+          <span>Total cholesterol</span>
+          <input type="number" name="Total_Cholesterol" min="80" max="500" step="1" value="198" required>
+          <em>mg/dL</em>
+        </label>
+        <label class="field">
+          <span>HDL cholesterol</span>
+          <input type="number" name="HDL" min="20" max="160" step="1" value="52" required>
+          <em>mg/dL</em>
+        </label>
+        <label class="field">
+          <span>HbA1c</span>
+          <input type="number" name="HbA1c" min="3.5" max="19" step="0.1" placeholder="Not measured">
+          <em>Percent. Leave blank if not measured.</em>
+        </label>
+        <p class="derived field">
+          <span>Cholesterol to HDL ratio</span>
+          <output id="ratio" class="readout-number">3.81</output>
+          <em>Calculated from the two values above.</em>
+        </p>
+      </div>
+    </fieldset>
+
+    <fieldset class="group">
+      <legend>History</legend>
+      <div class="fields">
+        <label class="field">
+          <span>Smoking</span>
+          <select name="Smoking">
+            <option value="">Not known</option>
+            <option>Never</option>
+            <option>Former</option>
+            <option>Current</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Diabetes</span>
+          <select name="Diabetes">
+            <option value="">Not known</option>
+            <option>No</option>
+            <option>Borderline</option>
+            <option>Yes</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Hypertension</span>
+          <select name="Medical_History_Hypertension">
+            <option value="">Not known</option>
+            <option>No</option>
+            <option>Yes</option>
+          </select>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="group group-abi">
+      <legend>Measured ankle-brachial index</legend>
+      <div class="fields">
+        <label class="field">
+          <span>ABI</span>
+          <input type="number" name="ABI" min="0" max="3" step="0.01" value="1.10" required>
+          <em>Lower of the two legs.</em>
+        </label>
+        <p class="note">The models are trained without ABI. This value grades
+           severity only, so the two results stay independent.</p>
+      </div>
+    </fieldset>
+
+    <div class="actions">
+      <button type="submit" class="run">Run screening</button>
+      <button type="reset" class="clear">Clear form</button>
+      <p class="error" id="error" hidden></p>
+    </div>
+  </form>
+
+  <aside class="readout" id="readout" aria-live="polite">
+
+    <div class="placeholder" id="placeholder">
+      <svg viewBox="0 0 120 60" class="trace" aria-hidden="true">
+        <path d="M0 40 H28 l5 -22 l6 34 l5 -12 H70 l5 -22 l6 34 l5 -12 H120"
+              fill="none" stroke="currentColor" stroke-width="1.5"
+              stroke-linejoin="round"/>
+      </svg>
+      <p>Results appear here once the record is scored.</p>
+    </div>
+
+    <div class="result" id="result" hidden>
+
+      <div class="verdict" id="verdict">
+        <p class="verdict-label" id="verdict-label">PAD detected</p>
+        <p class="verdict-sub" id="verdict-sub">Ensemble of three clinical models</p>
+      </div>
+
+      <section class="panel">
+        <h2>Risk level</h2>
+        <p class="risk-label" id="risk-label">Normal</p>
+        <p class="risk-detail" id="risk-detail"></p>
+
+        <div class="scale" id="scale">
+          <div class="scale-track">
+            {% for band in bands %}
+            <div class="scale-band band-{{ band.band }}" data-band="{{ band.band }}"
+                 style="--span: {{ band.span }}"
+                 title="{{ band.label }} ({{ band.range }})"></div>
+            {% endfor %}
+            <div class="needle" id="needle" hidden>
+              <span class="needle-value readout-number" id="needle-value">1.10</span>
+            </div>
+          </div>
+          <div class="scale-ticks" aria-hidden="true">
+            <span style="--at: 0.40">0.40</span>
+            <span style="--at: 0.90">0.90</span>
+            <span style="--at: 1.40">1.40</span>
+          </div>
+          <ul class="legend">
+            {% for band in bands %}
+            <li class="band-{{ band.band }}" data-legend="{{ band.band }}">
+              <span class="swatch"></span>
+              <span class="legend-name">{{ band.label }}</span>
+              <span class="legend-range readout-number">{{ band.range }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Confidence</h2>
+        <p class="confidence readout-number" id="confidence">—</p>
+        <div class="meter"><div class="meter-fill" id="meter-fill"></div></div>
+        <p class="confidence-note" id="confidence-note"></p>
+      </section>
+
+    </div>
+  </aside>
+
+</main>
+
+<footer class="footnote">
+  <p>Screening support only. Not a diagnosis. Decisions stay with the clinician.</p>
+</footer>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
