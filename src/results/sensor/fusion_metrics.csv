@@ -1,0 +1,13 @@
+model,subset,operating_point,n,n_pad,roc_auc,roc_auc_ci_low,roc_auc_ci_high,pr_auc,brier,calibration_intercept,calibration_slope,specificity_at_sens_0.80,threshold,sensitivity,specificity,ppv,npv,TP,FP,TN,FN
+clinical_ensemble,valid_recording,threshold_free,1846,175,0.7401,0.7034,0.7784,0.2366,0.1528,-1.9286,0.4526,0.5607,,,,,,,,,
+clinical_ensemble,all_participants,threshold_free,2455,246,0.7325,0.6997,0.7634,0.2361,0.1607,-1.931,0.427,0.5708,,,,,,,,,
+clinical_recalibrated,valid_recording,threshold_free,1846,175,0.7385,0.7015,0.777,0.2326,0.0799,-0.0008,0.9866,0.5583,,,,,,,,,
+clinical_recalibrated,all_participants,threshold_free,2455,246,0.7311,0.6988,0.7609,0.2309,0.0842,-0.0009,0.982,0.5613,,,,,,,,,
+accelerometry_only,valid_recording,threshold_free,1846,175,0.7511,0.7106,0.7883,0.2513,0.0786,-0.0011,0.9314,0.5583,,,,,,,,,
+early_fusion,valid_recording,threshold_free,1846,175,0.7911,0.7555,0.8262,0.2902,0.0758,-0.0052,0.8987,0.6194,,,,,,,,,
+early_fusion,all_participants,threshold_free,2455,246,0.7742,0.7409,0.804,0.2807,0.0808,-0.0012,0.8888,0.579,,,,,,,,,
+masked_stacking,valid_recording,threshold_free,1846,175,0.7812,0.7456,0.8172,0.2874,0.0764,-0.0015,0.9986,0.5859,,,,,,,,,
+masked_stacking,all_participants,threshold_free,2455,246,0.7641,0.7312,0.7933,0.2721,0.0816,-0.0016,0.9925,0.5985,,,,,,,,,
+clinical_recalibrated,no_recording,threshold_free,609,71,0.7054,0.6438,0.7693,0.2382,0.0973,-0.0012,0.9664,0.5576,,,,,,,,,
+masked_stacking,no_recording,threshold_free,609,71,0.7054,0.6438,0.7692,0.2381,0.0973,-0.0021,0.9662,0.5576,,,,,,,,,
+masked_stacking,valid_recording,deployed,1846,175,,,,,,,,,0.0694,0.8,0.5859,0.1683,0.9655,140.0,692.0,979.0,35.0

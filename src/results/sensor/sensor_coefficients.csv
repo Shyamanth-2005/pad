@@ -1,0 +1,11 @@
+feature,coef_per_sd,odds_ratio_per_sd
+Log_Total_Counts,-0.4789,0.6195
+Sedentary_Share,-0.433,0.6486
+Light_Minutes,0.2486,1.2822
+MVPA_Minutes,-0.1568,0.8549
+MVPA_Bout_Minutes,0.5141,1.6721
+ASTP,-0.0228,0.9774
+SATP,-0.3013,0.7398
+Peak30_Counts,-0.7849,0.4562
+Longest_Active_Bout,-0.6384,0.5281
+Log_PM_AM_Ratio,-0.1516,0.8593

@@ -88,9 +88,7 @@ body {
 
 /* Placeholder panels for sources that are not wired up yet. */
 .stub {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 48px 32px;
+  padding: 48px 0;
   min-height: 320px;
 }
 .stub p { margin: 0; color: var(--ink-faint); }
@@ -190,6 +188,13 @@ button {
 .clear { background: transparent; border-color: var(--rule); color: var(--ink-soft); }
 .clear:hover { border-color: var(--ink-soft); color: var(--ink); }
 .error { margin: 0; color: var(--severe); font-size: 0.85rem; }
+
+.lede {
+  margin: 0 0 18px;
+  max-width: 62ch;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
 
 /* ---------------------------------------------------------- readout */
 
@@ -331,6 +336,19 @@ button {
 }
 .confidence-note { margin: 0; font-size: 0.82rem; color: var(--ink-soft); max-width: 40ch; }
 
+/* ---------------------------------------------------------- branches */
+
+.branches {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 0.88rem;
+}
+.branches dt { color: var(--ink-soft); }
+.branches dd { margin: 0; text-align: right; }
+.branches .is-final { color: var(--ink); font-weight: 600; }
+
 /* ---------------------------------------------------------- footer */
 
 .footnote {
@@ -348,7 +366,7 @@ button {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .readout { position: static; }
   .masthead { padding: 36px 20px 18px; }
-  .workspace, .footnote, .tabs, .stub { padding-inline: 20px; }
+  .workspace, .footnote, .tabs { padding-inline: 20px; }
 }
 @media (max-width: 520px) {
   .fields { grid-template-columns: minmax(0, 1fr); }

@@ -1,0 +1,35 @@
+{
+  "dataset": "PAD_nhanes_2003_2004_sensor.csv",
+  "n": 2455,
+  "n_pad": 246,
+  "n_valid_recording": 1846,
+  "n_pad_valid_recording": 175,
+  "sensor_features": [
+    "Log_Total_Counts",
+    "Sedentary_Share",
+    "Light_Minutes",
+    "MVPA_Minutes",
+    "MVPA_Bout_Minutes",
+    "ASTP",
+    "SATP",
+    "Peak30_Counts",
+    "Longest_Active_Bout",
+    "Log_PM_AM_Ratio"
+  ],
+  "clinical_branch": "frozen soft vote of src/models/*_clinical.joblib",
+  "protocol": {
+    "repeats": 20,
+    "outer_folds": 5,
+    "inner_folds": 5,
+    "stratified_by": "PAD x Sensor_Available"
+  },
+  "negative_control_runs": 50,
+  "bootstrap_resamples": 1000,
+  "deployed_threshold": 0.06937981729234606,
+  "threshold_rule": "largest fused score with sensitivity >= 0.8 on CV predictions of participants with a recording",
+  "branch_weight_per_sd_logit": {
+    "clinical": 0.6558622107837346,
+    "sensor": 0.8330381115542181
+  },
+  "seed": 42
+}

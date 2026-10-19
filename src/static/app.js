@@ -1,6 +1,7 @@
 const form = document.getElementById("intake");
 const errorBox = document.getElementById("error");
-const runButton = form.querySelector(".run");
+const sensorForm = document.getElementById("sensor-intake");
+const sensorErrorBox = document.getElementById("sensor-error");
 
 const placeholder = document.getElementById("placeholder");
 const result = document.getElementById("result");
@@ -15,6 +16,7 @@ const confidence = document.getElementById("confidence");
 const meterFill = document.getElementById("meter-fill");
 const confidenceNote = document.getElementById("confidence-note");
 const ratio = document.getElementById("ratio");
+const branches = document.getElementById("branches");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
 const OPTIONAL = new Set(["HbA1c", "Diabetes", "Medical_History_Hypertension"]);
@@ -40,6 +42,15 @@ function collect() {
   return payload;
 }
 
+// Every sensor field is a number; the API takes them as one nested object.
+function collectSensor() {
+  const summaries = {};
+  for (const [name, raw] of new FormData(sensorForm).entries()) {
+    summaries[name] = Number(raw);
+  }
+  return summaries;
+}
+
 function describeProblem(detail) {
   if (typeof detail === "string") return detail;
   if (!Array.isArray(detail)) return "Could not score this record.";
@@ -54,10 +65,12 @@ function render(data) {
 
   verdict.classList.toggle("is-detected", data.pad_detected);
   verdict.classList.toggle("is-clear", !data.pad_detected);
+  const fused = data.modalities.includes("sensor");
   verdictLabel.textContent = data.verdict;
+  const basis = fused ? "Clinical and sensor branches fused. " : "";
   verdictSub.textContent = data.pad_detected
-    ? `Scored above the screening threshold of ${data.threshold}`
-    : `Scored below the screening threshold of ${data.threshold}`;
+    ? `${basis}Scored above the screening threshold of ${data.threshold}`
+    : `${basis}Scored below the screening threshold of ${data.threshold}`;
 
   riskLabel.textContent = data.risk.label;
   riskLabel.className = `risk-label band-${data.risk.band}`;
@@ -78,12 +91,63 @@ function render(data) {
   confidence.textContent = `${percent.toFixed(1)}%`;
   meterFill.style.width = `${percent}%`;
   const chance = (data.probability * 100).toFixed(1);
+  const source = fused ? "Fused" : "Ensemble";
   confidenceNote.textContent = data.pad_detected
-    ? `How far above the threshold this record scored. Ensemble probability of PAD: ${chance}%.`
-    : `How far below the threshold this record scored. Ensemble probability of PAD: ${chance}%.`;
+    ? `How far above the threshold this record scored. ${source} probability of PAD: ${chance}%.`
+    : `How far below the threshold this record scored. ${source} probability of PAD: ${chance}%.`;
+
+  renderBranches(data, fused);
 
   if (window.matchMedia("(max-width: 900px)").matches) {
     result.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function renderBranches(data, fused) {
+  const rows = [["Clinical ensemble", data.branch_probabilities.clinical, !fused]];
+  if (fused) {
+    rows.push(["Sensor model", data.branch_probabilities.sensor, false]);
+    rows.push(["Fused", data.probability, true]);
+  }
+  branches.replaceChildren();
+  for (const [name, value, final] of rows) {
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = name;
+    detail.textContent = `${(value * 100).toFixed(1)}%`;
+    detail.className = "readout-number";
+    if (final) {
+      term.classList.add("is-final");
+      detail.classList.add("is-final");
+    }
+    branches.append(term, detail);
+  }
+}
+
+function clearResult() {
+  placeholder.hidden = false;
+  result.hidden = true;
+}
+
+async function score(payload, button, problemBox) {
+  const label = button.textContent;
+  button.disabled = true;
+  button.textContent = "Scoring";
+  try {
+    const response = await fetch("/api/predict", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(describeProblem(data.detail));
+    render(data);
+  } catch (problem) {
+    problemBox.textContent = problem.message;
+    problemBox.hidden = false;
+  } finally {
+    button.disabled = false;
+    button.textContent = label;
   }
 }
 
@@ -94,36 +158,35 @@ form.addEventListener("input", (event) => {
 });
 
 form.addEventListener("reset", () => {
-  placeholder.hidden = false;
-  result.hidden = true;
+  clearResult();
   errorBox.hidden = true;
   setTimeout(updateRatio);
 });
 
-form.addEventListener("submit", async (event) => {
+form.addEventListener("submit", (event) => {
   event.preventDefault();
   errorBox.hidden = true;
-
   if (!form.reportValidity()) return;
+  score(collect(), event.submitter, errorBox);
+});
 
-  runButton.disabled = true;
-  runButton.textContent = "Scoring";
-  try {
-    const response = await fetch("/api/predict", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(collect()),
-    });
-    const data = await response.json();
-    if (!response.ok) throw new Error(describeProblem(data.detail));
-    render(data);
-  } catch (problem) {
-    errorBox.textContent = problem.message;
-    errorBox.hidden = false;
-  } finally {
-    runButton.disabled = false;
-    runButton.textContent = "Run screening";
+sensorForm.addEventListener("reset", () => {
+  clearResult();
+  sensorErrorBox.hidden = true;
+});
+
+sensorForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  sensorErrorBox.hidden = true;
+  // The fusion needs the clinical score, so an incomplete record sends the
+  // user back to the Clinical tab with the browser pointing at the gap.
+  if (!form.checkValidity()) {
+    selectTab(document.getElementById("tab-clinical"));
+    form.reportValidity();
+    return;
   }
+  if (!sensorForm.reportValidity()) return;
+  score({ ...collect(), Accelerometry: collectSensor() }, event.submitter, sensorErrorBox);
 });
 
 // ---------------------------------------------------------------- tabs

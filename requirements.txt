@@ -12,7 +12,11 @@ joblib==1.4.2
 numpy==2.2.1
 pandas==2.2.3
 
-# --- Training only (src/train/train_clinical.py) ---
+# --- Training only (src/train/*.py) ---
 matplotlib==3.10.0
 shap==0.46.0
-statsmodels==0.14.4
+statsmodels==0.14.6
+
+# --- Tests ---
+pytest==8.3.4
+httpx==0.28.1

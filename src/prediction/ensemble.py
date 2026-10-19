@@ -77,28 +77,28 @@ class PADEnsemble:
         return {
             "pad_detected": bool(detected),
             "probability": round(probability, 4),
-            "confidence": round(self._confidence(probability, detected), 4),
+            "confidence": round(decision_confidence(probability, self.threshold), 4),
             "threshold": self.threshold,
             "per_model": {k: round(v, 4) for k, v in per_model.items()},
         }
 
-    def _confidence(self, probability: float, detected: bool) -> float:
-        """How far the score sits from the decision boundary, as 0.5 to 1.0.
 
-        Reporting the raw probability as confidence breaks down at a screening
-        threshold: a positive verdict at 0.13 would read as "PAD detected,
-        13% confident". Measuring the margin instead puts a score sitting exactly
-        on the threshold at 0.5 and one at either extreme at 1.0, which is what
-        "confidence in this verdict" should mean. The raw probability is still
-        returned separately.
-        """
-        threshold = self.threshold
-        if detected:
-            span = 1.0 - threshold
-            margin = (probability - threshold) / span if span > 0 else 1.0
-        else:
-            margin = (threshold - probability) / threshold if threshold > 0 else 1.0
-        return 0.5 + 0.5 * min(max(margin, 0.0), 1.0)
+def decision_confidence(probability: float, threshold: float) -> float:
+    """How far the score sits from the decision boundary, as 0.5 to 1.0.
+
+    Reporting the raw probability as confidence breaks down at a screening
+    threshold: a positive verdict at 0.13 would read as "PAD detected,
+    13% confident". Measuring the margin instead puts a score sitting exactly
+    on the threshold at 0.5 and one at either extreme at 1.0, which is what
+    "confidence in this verdict" should mean. The raw probability is still
+    returned separately.
+    """
+    if probability >= threshold:
+        span = 1.0 - threshold
+        margin = (probability - threshold) / span if span > 0 else 1.0
+    else:
+        margin = (threshold - probability) / threshold if threshold > 0 else 1.0
+    return 0.5 + 0.5 * min(max(margin, 0.0), 1.0)
 
 
 _ensemble: PADEnsemble | None = None

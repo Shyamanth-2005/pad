@@ -1,0 +1,11 @@
+feature,no_pad_mean,no_pad_sd,pad_mean,pad_sd,direction_in_pad,univariate_auc,corr_with_age
+Log_Total_Counts,12.2137,0.5301,11.7077,0.592,lower,0.7383,-0.555
+Sedentary_Share,0.58,0.1166,0.6604,0.1211,higher,0.6839,0.4236
+Light_Minutes,336.5291,96.6922,274.8657,101.2395,lower,0.6733,-0.3981
+MVPA_Minutes,18.1911,20.8425,6.4609,9.5912,lower,0.7421,-0.4064
+MVPA_Bout_Minutes,3.8631,9.8222,1.4459,5.2938,lower,0.5899,-0.1142
+ASTP,0.2815,0.0783,0.3431,0.0962,higher,0.6889,0.3471
+SATP,0.1992,0.0585,0.1687,0.0579,lower,0.6495,-0.4274
+Peak30_Counts,2092.7563,941.311,1386.6086,638.8071,lower,0.7537,-0.4935
+Longest_Active_Bout,32.8903,17.7466,21.9375,12.1545,lower,0.7222,-0.2447
+Log_PM_AM_Ratio,0.4259,1.121,0.3133,0.9088,lower,0.5592,-0.1651

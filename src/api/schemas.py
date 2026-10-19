@@ -1,7 +1,7 @@
 """Request and response contracts for the PAD screening API."""
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, model_validator
 
 SexLevel = Literal["Male", "Female"]
 RaceLevel = Literal["Mexican American", "Other Hispanic", "Non-Hispanic White",
@@ -9,6 +9,35 @@ RaceLevel = Literal["Mexican American", "Other Hispanic", "Non-Hispanic White",
 SmokingLevel = Literal["Never", "Former", "Current"]
 DiabetesLevel = Literal["No", "Borderline", "Yes"]
 YesNoLevel = Literal["No", "Yes"]
+
+
+# The sensor branch is trained on NHANES 2003-2004, where the ABI was measured
+# only from age 40.
+SENSOR_MIN_AGE = 40
+
+
+class AccelerometryInput(BaseModel):
+    """Seven-day hip accelerometer summaries (report Table 3.2).
+
+    Each value is averaged over valid days: at least four days with 10+ hours of
+    wear. Bounds are physical limits of a 1,440-minute day and ActiGraph counts.
+    """
+    Log_Total_Counts: float = Field(ge=0, le=18, description="log(1 + counts/day)")
+    Sedentary_Share: float = Field(ge=0, le=1, description="Share of wear time < 100 counts/min")
+    Light_Minutes: float = Field(ge=0, le=1440, description="Minutes/day at 100-2019 counts/min")
+    MVPA_Minutes: float = Field(ge=0, le=1440, description="Minutes/day at >= 2020 counts/min")
+    MVPA_Bout_Minutes: float = Field(ge=0, le=1440, description="MVPA minutes/day in bouts >= 10 min")
+    ASTP: float = Field(ge=0, le=1, description="Active-to-sedentary transition probability")
+    SATP: float = Field(ge=0, le=1, description="Sedentary-to-active transition probability")
+    Peak30_Counts: float = Field(ge=0, le=32767, description="Mean of the 30 most active minutes")
+    Longest_Active_Bout: float = Field(ge=0, le=1440, description="Minutes, >= 100 counts/min")
+    Log_PM_AM_Ratio: float = Field(ge=-18, le=18, description="log afternoon / morning counts")
+
+    @model_validator(mode="after")
+    def bouts_within_mvpa(self):
+        if self.MVPA_Bout_Minutes > self.MVPA_Minutes:
+            raise ValueError("MVPA_Bout_Minutes cannot exceed MVPA_Minutes")
+        return self
 
 
 class PatientInput(BaseModel):
@@ -33,6 +62,16 @@ class PatientInput(BaseModel):
     # Measured, never modelled: used only to grade severity.
     ABI: float = Field(ge=0.0, le=3.0, description="Ankle-brachial index (measured)")
 
+    # Optional sensor branch; present only when a valid recording exists (m = 1).
+    Accelerometry: Optional[AccelerometryInput] = None
+
+    @model_validator(mode="after")
+    def sensor_age_range(self):
+        if self.Accelerometry is not None and self.Age < SENSOR_MIN_AGE:
+            raise ValueError(f"The sensor branch is validated for ages "
+                             f"{SENSOR_MIN_AGE}-85 only")
+        return self
+
     @computed_field
     @property
     def TC_HDL_Ratio(self) -> float:
@@ -40,10 +79,8 @@ class PatientInput(BaseModel):
         return round(self.Total_Cholesterol / self.HDL, 2)
 
     def to_features(self) -> dict:
-        """Model feature dict - ABI is deliberately excluded."""
-        data = self.model_dump()
-        data.pop("ABI")
-        return data
+        """Clinical feature dict - ABI and the sensor summaries are excluded."""
+        return self.model_dump(exclude={"ABI", "Accelerometry"})
 
 
 class ABIAssessment(BaseModel):
@@ -57,6 +94,11 @@ class PredictionResponse(BaseModel):
     pad_detected: bool
     verdict: str
     confidence: float = Field(description="0.5-1.0 confidence in the verdict returned")
-    probability: float = Field(description="Raw ensemble probability of PAD")
+    probability: float = Field(description="Probability of PAD the verdict is based on: "
+                                           "fused when accelerometry is supplied, "
+                                           "otherwise the clinical ensemble")
     risk: ABIAssessment
     threshold: float
+    modalities: list[str] = Field(description="Branches that contributed to the verdict")
+    branch_probabilities: dict[str, float] = Field(
+        description="Per-branch probability of PAD before fusion")
