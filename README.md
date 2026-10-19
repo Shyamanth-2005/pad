@@ -142,9 +142,10 @@ on the cross-validated predictions (specificity 0.586, NPV 0.966). It is read at
 startup from `src/results/sensor/fusion_metrics.csv`. Because it is chosen on the
 same predictions, those two figures are not independent estimates.
 
-The sensor branch requires age 40–85, the range in which NHANES measured the
-ABI. Consumer wrist wearables are untested: the features describe a hip-worn
-research device.
+The sensor branch accepts ages 18–85, like the clinical form. NHANES measured
+the ABI only from age 40, so for ages 18–39 the sensor model and fusion layer
+are extrapolating, with no validation data there. Consumer wrist wearables are
+also untested: the features describe a hip-worn research device.
 
 ## Layout
 
@@ -242,7 +243,7 @@ The response then has `"modalities": ["clinical", "sensor"]`, a `sensor` entry i
 `branch_probabilities`, and `"threshold": 0.0694`.
 
 Optional fields accept `null`. Out-of-range values return `422` with the offending
-field named, as does accelerometry for a patient under 40.
+field named.
 
 ### `GET /api/health`
 

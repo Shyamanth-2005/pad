@@ -77,12 +77,19 @@ def test_sensor_request_is_fused(client):
     assert 0.5 <= body["confidence"] <= 1.0
 
 
-def test_sensor_branch_rejects_under_40(client):
-    young = {**CLINICAL, "Age": 35}
-    assert client.post("/api/predict", json=young).status_code == 200
-    response = client.post("/api/predict", json={**young, "Accelerometry": ACTIVE})
+@pytest.mark.parametrize("age", [18, 35, 85])
+def test_sensor_branch_accepts_ages_18_to_85(client, age):
+    response = client.post("/api/predict",
+                           json={**CLINICAL, "Age": age, "Accelerometry": ACTIVE})
+    assert response.status_code == 200
+    assert response.json()["modalities"] == ["clinical", "sensor"]
+
+
+@pytest.mark.parametrize("age", [17, 86])
+def test_sensor_branch_rejects_ages_outside_18_to_85(client, age):
+    response = client.post("/api/predict",
+                           json={**CLINICAL, "Age": age, "Accelerometry": ACTIVE})
     assert response.status_code == 422
-    assert "40-85" in response.text
 
 
 @pytest.mark.parametrize("change", [

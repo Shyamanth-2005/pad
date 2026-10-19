@@ -11,11 +11,6 @@ DiabetesLevel = Literal["No", "Borderline", "Yes"]
 YesNoLevel = Literal["No", "Yes"]
 
 
-# The sensor branch is trained on NHANES 2003-2004, where the ABI was measured
-# only from age 40.
-SENSOR_MIN_AGE = 40
-
-
 class AccelerometryInput(BaseModel):
     """Seven-day hip accelerometer summaries (report Table 3.2).
 
@@ -63,14 +58,9 @@ class PatientInput(BaseModel):
     ABI: float = Field(ge=0.0, le=3.0, description="Ankle-brachial index (measured)")
 
     # Optional sensor branch; present only when a valid recording exists (m = 1).
+    # Accepted across the full 18-85 range, although the sensor model was fitted
+    # on NHANES 2003-2004, which measured the ABI only from age 40.
     Accelerometry: Optional[AccelerometryInput] = None
-
-    @model_validator(mode="after")
-    def sensor_age_range(self):
-        if self.Accelerometry is not None and self.Age < SENSOR_MIN_AGE:
-            raise ValueError(f"The sensor branch is validated for ages "
-                             f"{SENSOR_MIN_AGE}-85 only")
-        return self
 
     @computed_field
     @property
