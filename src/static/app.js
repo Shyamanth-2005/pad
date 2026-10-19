@@ -42,11 +42,24 @@ function collect() {
   return payload;
 }
 
+// The form asks for everyday units; the model takes some on a log or 0-1 scale.
+// The model's daily log values are averaged over days, so the log of a weekly
+// average is a close approximation, not an exact match.
+const fromPercent = (value) => value / 100;
+const SENSOR_UNITS = {
+  Counts_Per_Day: ["Log_Total_Counts", Math.log1p],
+  Sedentary_Percent: ["Sedentary_Share", fromPercent],
+  ASTP_Percent: ["ASTP", fromPercent],
+  SATP_Percent: ["SATP", fromPercent],
+  PM_AM_Ratio: ["Log_PM_AM_Ratio", Math.log],
+};
+
 // Every sensor field is a number; the API takes them as one nested object.
 function collectSensor() {
   const summaries = {};
   for (const [name, raw] of new FormData(sensorForm).entries()) {
-    summaries[name] = Number(raw);
+    const [modelName, convert] = SENSOR_UNITS[name] ?? [name, (value) => value];
+    summaries[modelName] = convert(Number(raw));
   }
   return summaries;
 }

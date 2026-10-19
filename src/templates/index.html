@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/style.css">
+<link rel="stylesheet" href="/static/style.css?v={{ version }}">
 </head>
 <body>
 
@@ -151,70 +151,72 @@
   <form id="sensor-intake" class="intake" role="tabpanel" aria-labelledby="tab-sensor"
         tabindex="0" novalidate hidden>
 
-    <p class="lede">Optional. Seven-day hip accelerometer summaries, each averaged
-       over at least four days with ten or more hours of wear. Fill in all ten to
-       fuse them with the clinical record, or leave every field blank to screen on
-       the clinical record alone. The sensor model was trained on adults aged 40
-       and over.</p>
+    <p class="lede">Optional. Fill these in if the patient wore an activity
+       tracker on the hip for a week; otherwise leave every field blank and the
+       screen uses the clinical record alone. Copy each number from the tracker's
+       weekly report, as a daily average; you do not need to work anything out.
+       The tracker scores every minute by how much the wearer moved, and some
+       values below use that score. "Typical" means the middle half of adults
+       aged 40 and over, the group the model learned from.</p>
 
     <fieldset class="group">
-      <legend>Activity volume</legend>
+      <legend>How much the patient moves</legend>
       <div class="fields">
         <label class="field">
-          <span>Total activity</span>
-          <input type="number" name="Log_Total_Counts" min="0" max="18" step="any" placeholder="e.g. 12.26">
-          <em>log(1 + counts per day)</em>
+          <span>Daily movement score</span>
+          <input type="number" name="Counts_Per_Day" min="0" max="65000000" step="any" placeholder="e.g. 211000">
+          <em>The tracker's total score for a whole day. Higher means a more active day. Typical: 138,000 to 280,000.</em>
         </label>
         <label class="field">
-          <span>Sedentary share</span>
-          <input type="number" name="Sedentary_Share" min="0" max="1" step="any" placeholder="e.g. 0.585">
-          <em>Share of wear time under 100 counts/min</em>
+          <span>Time spent still</span>
+          <input type="number" name="Sedentary_Percent" min="0" max="100" step="any" placeholder="e.g. 58.5">
+          <em>Of the time the tracker was worn, the percent spent sitting or lying down. Typical: 51 to 67%.</em>
         </label>
         <label class="field">
           <span>Light activity</span>
           <input type="number" name="Light_Minutes" min="0" max="1440" step="any" placeholder="e.g. 331">
-          <em>Minutes/day at 100&ndash;2019 counts/min</em>
+          <em>Minutes a day of easy movement, like strolling, cooking or housework. Typical: 263 to 397 (about 4&frac12; to 6&frac12; hours).</em>
         </label>
         <label class="field">
-          <span>Moderate to vigorous</span>
+          <span>Exercise</span>
           <input type="number" name="MVPA_Minutes" min="0" max="1440" step="any" placeholder="e.g. 10.9">
-          <em>Minutes/day at 2020+ counts/min</em>
+          <em>Minutes a day of activity that makes the patient breathe harder, like brisk walking, cycling or sport. Typical: 3 to 24.</em>
         </label>
         <label class="field">
-          <span>MVPA in bouts</span>
+          <span>Exercise without a break</span>
           <input type="number" name="MVPA_Bout_Minutes" min="0" max="1440" step="any" placeholder="e.g. 0">
-          <em>Minutes/day in bouts of 10+ minutes</em>
+          <em>Of the exercise minutes, how many came in stretches of 10 minutes or longer without stopping. Most people: 0 to 2. Enter 0 if none.</em>
         </label>
       </div>
     </fieldset>
 
     <fieldset class="group">
-      <legend>Activity pattern</legend>
+      <legend>How the patient moves through the day</legend>
       <div class="fields">
         <label class="field">
-          <span>Active to sedentary</span>
-          <input type="number" name="ASTP" min="0" max="1" step="any" placeholder="e.g. 0.275">
-          <em>Transition probability per active minute</em>
+          <span>Stopping after moving</span>
+          <input type="number" name="ASTP_Percent" min="0" max="100" step="any" placeholder="e.g. 27.5">
+          <em>Out of every 100 minutes spent moving, how many end with the patient stopping to rest. Higher means they move in short bursts and stop often. Typical: 23 to 33.</em>
         </label>
         <label class="field">
-          <span>Sedentary to active</span>
-          <input type="number" name="SATP" min="0" max="1" step="any" placeholder="e.g. 0.194">
-          <em>Transition probability per sedentary minute</em>
+          <span>Starting after sitting</span>
+          <input type="number" name="SATP_Percent" min="0" max="100" step="any" placeholder="e.g. 19.4">
+          <em>Out of every 100 minutes spent sitting, how many end with the patient getting up and moving. Higher means they sit for shorter spells. Typical: 15 to 23.</em>
         </label>
         <label class="field">
-          <span>Peak 30 minutes</span>
+          <span>Most active half hour</span>
           <input type="number" name="Peak30_Counts" min="0" max="32767" step="any" placeholder="e.g. 1928">
-          <em>Mean counts/min of the 30 most active minutes</em>
+          <em>How hard the patient moved in their busiest 30 minutes of the day, on the tracker's per-minute score. Higher means more intense movement. Typical: 1,390 to 2,490.</em>
         </label>
         <label class="field">
-          <span>Longest active bout</span>
+          <span>Longest active stretch</span>
           <input type="number" name="Longest_Active_Bout" min="0" max="1440" step="any" placeholder="e.g. 28.8">
-          <em>Minutes at 100+ counts/min</em>
+          <em>The longest time in a day the patient kept moving without sitting down to rest, in minutes. Typical: 20 to 39.</em>
         </label>
         <label class="field">
-          <span>Afternoon to morning</span>
-          <input type="number" name="Log_PM_AM_Ratio" min="-18" max="18" step="any" placeholder="e.g. 0.25">
-          <em>log of 12&ndash;18 h over 6&ndash;12 h counts</em>
+          <span>Afternoon vs morning</span>
+          <input type="number" name="PM_AM_Ratio" min="0.0001" max="10000" step="any" placeholder="e.g. 1.28">
+          <em>Afternoon movement (noon to 6 pm) divided by morning movement (6 am to noon). 1 means equally active; 2 means twice as active in the afternoon; 0.5 means half as active. Typical: 0.95 to 1.78.</em>
         </label>
       </div>
     </fieldset>
@@ -303,6 +305,6 @@
   <p>Screening support only. Not a diagnosis. Decisions stay with the clinician.</p>
 </footer>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v={{ version }}"></script>
 </body>
 </html>

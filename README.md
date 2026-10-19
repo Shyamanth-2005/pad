@@ -179,6 +179,14 @@ record is always required. The Sensor tab starts blank: left blank, the record
 is scored in clinical-only mode; with all ten fields filled, the sensor branch
 is added. A partly filled Sensor tab is rejected rather than imputed.
 
+The Sensor tab asks for everyday units and converts them before calling the
+API. Counts per day becomes `Log_Total_Counts = ln(1 + counts)`; the three
+percentages become 0–1 shares (`Sedentary_Share`, `ASTP`, `SATP`); and the
+afternoon-to-morning ratio becomes `Log_PM_AM_Ratio = ln(ratio)`. The model
+averages the daily logs, so taking the log of a weekly average is a close
+approximation, not an exact match. Each field's hint gives the NHANES
+interquartile range as a typical value.
+
 The form accepts ages 18–85. NHANES measured the ABI only from age 40, so for
 ages 18–39 the NHANES clinical model, the sensor model and the fusion layer are
 all extrapolating, with no validation data there. Consumer wrist wearables are
@@ -225,8 +233,24 @@ blood pressure and lipids:
 ### Clinical + sensor
 
 Sensor data matters most for borderline records, so these two examples are
-records the clinical data alone scores close to the threshold. Two activity
-profiles go in the Sensor tab (or the `Accelerometry` object):
+records the clinical data alone scores close to the threshold. Each uses one of
+two activity profiles. The Sensor tab asks for everyday units, which the page
+converts before sending:
+
+| Sensor tab field | Inactive | Active |
+| --- | --- | --- |
+| Daily movement score | 73100 | 211000 |
+| Time spent still (%) | 76 | 58.5 |
+| Light activity (min/day) | 190 | 331 |
+| Exercise (min/day) | 0.5 | 10.9 |
+| Exercise without a break (min/day) | 0 | 0 |
+| Stopping after moving (per 100 min) | 42 | 27.5 |
+| Starting after sitting (per 100 min) | 12 | 19.4 |
+| Most active half hour | 700 | 1928 |
+| Longest active stretch (min) | 12 | 28.8 |
+| Afternoon vs morning (ratio) | 1.11 | 1.28 |
+
+The same profiles as the API's `Accelerometry` object, in model units:
 
 ```jsonc
 // Inactive: low, fragmented activity, as seen with PAD

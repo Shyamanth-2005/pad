@@ -19,7 +19,15 @@ from src.prediction.ensemble import get_ensemble
 from src.prediction.fusion import get_fusion
 
 BASE_DIR = Path(__file__).resolve().parents[1]
+STATIC_DIR = BASE_DIR / "static"
 TEMPLATES = Jinja2Templates(directory=str(BASE_DIR / "templates"))
+
+
+def asset_version() -> str:
+    """Changes whenever app.js or style.css does, so the page's asset URLs change
+    too and a browser never pairs a new page with a cached old script."""
+    return str(int(max((STATIC_DIR / name).stat().st_mtime
+                       for name in ("app.js", "style.css"))))
 
 
 @asynccontextmanager
@@ -31,13 +39,13 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="PAD Screening", version="1.0.0", lifespan=lifespan)
-app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
     return TEMPLATES.TemplateResponse(
-        request, "index.html", {"bands": band_reference()})
+        request, "index.html", {"bands": band_reference(), "version": asset_version()})
 
 
 @app.get("/api/health")
