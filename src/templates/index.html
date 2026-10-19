@@ -13,16 +13,17 @@
 
 <header class="masthead">
   <h1>Peripheral arterial disease screening</h1>
-  <p>Enter the clinical record and the measured ankle-brachial index. Three trained
-     models score the record together; the ABI grades severity. A seven-day
-     accelerometer recording, when available, refines the score.</p>
+  <p>Enter the clinical record and the measured ankle-brachial index. Clinical
+     models score the record and a fusion layer calibrates the result on real
+     patients; the ABI grades severity. A seven-day accelerometer recording, when
+     available, refines the score.</p>
 </header>
 
 <nav class="tabs" role="tablist" aria-label="Input source">
   <button type="button" role="tab" id="tab-clinical" aria-controls="intake"
           aria-selected="true">Clinical</button>
   <button type="button" role="tab" id="tab-sensor" aria-controls="sensor-intake"
-          aria-selected="false" tabindex="-1">Sensor</button>
+          aria-selected="false" tabindex="-1">Sensor <span class="tab-note">optional</span></button>
   <button type="button" role="tab" id="tab-medical" aria-controls="panel-medical"
           aria-selected="false" tabindex="-1">Medical</button>
 </nav>
@@ -108,8 +109,9 @@
       <div class="fields">
         <label class="field">
           <span>Smoking</span>
-          <select name="Smoking" required>
-            <option>Never</option>
+          <select name="Smoking">
+            <option value="">Not known</option>
+            <option selected>Never</option>
             <option>Former</option>
             <option>Current</option>
           </select>

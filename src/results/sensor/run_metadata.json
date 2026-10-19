@@ -17,6 +17,7 @@
     "Log_PM_AM_Ratio"
   ],
   "clinical_branch": "frozen soft vote of src/models/*_clinical.joblib",
+  "nhanes_clinical_branch": "logistic regression, C=0.1, fitted on this cohort",
   "protocol": {
     "repeats": 20,
     "outer_folds": 5,
@@ -25,11 +26,13 @@
   },
   "negative_control_runs": 50,
   "bootstrap_resamples": 1000,
-  "deployed_threshold": 0.06937981729234606,
-  "threshold_rule": "largest fused score with sensitivity >= 0.8 on CV predictions of participants with a recording",
+  "deployed_threshold": 0.0762668880378895,
+  "clinical_only_threshold": 0.0812770805144719,
+  "threshold_rule": "largest score with sensitivity >= 0.8 on CV predictions: participants with a recording (fused), all participants scored with m = 0 (clinical only)",
   "branch_weight_per_sd_logit": {
-    "clinical": 0.6558622107837346,
-    "sensor": 0.8330381115542181
+    "clinical": 0.2922610378094805,
+    "nhanes_clinical": 0.5677202312432156,
+    "sensor": 0.6616828528768679
   },
   "seed": 42
 }

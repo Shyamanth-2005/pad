@@ -1,17 +1,19 @@
 # PAD Screening
 
-A web tool that screens a clinical record for peripheral arterial disease. Three
-trained models score the record together; a separately measured ankle-brachial
-index (ABI) grades severity. When a seven-day hip accelerometer recording is
-available, a sensor branch scores it and a fusion layer combines the two scores.
+A web tool that screens a clinical record for peripheral arterial disease. Two
+clinical branches score the record: a three-model ensemble trained on an
+augmented 50,000-record cohort, and a logistic regression fitted on real NHANES
+patients. A fusion layer combines and calibrates them; a separately measured
+ankle-brachial index (ABI) grades severity. When a seven-day hip accelerometer
+recording is available, a sensor branch scores it and the fusion layer adds it in.
 
 The interface returns three things and nothing else:
 
 | Output | Source |
 | --- | --- |
-| PAD detected / not detected | Soft-vote ensemble of the three models, fused with the sensor branch when accelerometry is supplied |
+| PAD detected / not detected | The fusion layer's score against the threshold for the mode used (clinical only, or clinical + sensor) |
 | Risk level | The measured ABI, read against the standard bands |
-| Confidence | Distance of the ensemble score from the decision threshold |
+| Confidence | Distance of the fused score from that threshold |
 
 ## Why the ABI is an input, not an output
 
@@ -34,7 +36,9 @@ Thirteen columns, in the order the pipelines expect:
 rather than asking for it. `HbA1c`, `Smoking`, `Diabetes` and
 `Medical_History_Hypertension` are nullable in the training data and stay
 optional in the form — each pipeline imputes them (median for numeric, most
-frequent for categorical).
+frequent for categorical). A blank field reaches the pipelines as `NaN`, the
+value their imputers recognise; before, a blank categorical was silently read as
+its reference level, so an unknown smoking status scored as "Current".
 
 ## ABI bands
 
@@ -46,20 +50,35 @@ frequent for categorical).
 | 0.00 – 0.40 | Severe PAD, high risk of significant blockages |
 | Above 1.40 | Non-compressible — stiff or calcified arteries, often in diabetes |
 
-## Ensemble and threshold
+## Clinical branches
 
-The ensemble probability is the unweighted mean of the three `predict_proba`
-outputs. All three models land within 0.002 ROC-AUC of each other, so weighting
-them would fit noise.
+**Ensemble.** The unweighted mean of the three `predict_proba` outputs. All three
+models land within 0.002 ROC-AUC of each other on the augmented cohort (about
+0.94), so weighting them would fit noise.
 
-The detection threshold is the mean of the per-model Youden-optimal thresholds
-read at startup from `src/results/model_metrics.csv` — roughly **0.13**, not 0.5.
-Youden maximises sensitivity + specificity, which is the right operating point
-for screening: at this cutoff the models recall about 89% of true cases, where a
-0.5 cutoff would miss nearly half of them. The trade-off is precision of roughly
-47%, so a positive result is a prompt to investigate, not a diagnosis.
+**NHANES clinical model.** On real NHANES patients the ensemble ranks worse
+(ROC-AUC 0.733) and is badly overconfident (calibration slope 0.43). A
+logistic regression on the same thirteen features, fitted on the real cohort
+(`C = 0.1`), reaches 0.762 under the same cross-validation. More flexible models
+did not help: gradient boosting scored 0.740 and spline terms 0.761.
 
-If `model_metrics.csv` is missing, the threshold falls back to 0.5.
+Neither branch decides alone. The fusion layer below weighs them, and its
+threshold decides.
+
+## Thresholds
+
+Each mode has its own threshold: the largest fused score that still reaches
+sensitivity 0.80 on the cross-validated NHANES predictions. Both are read at
+startup from `src/results/sensor/fusion_metrics.csv`.
+
+| Mode | Threshold | Sensitivity | Specificity | PPV | NPV |
+| --- | --- | --- | --- | --- | --- |
+| Clinical only (all 2,455 participants) | 0.0813 | 0.80 | 0.594 | 0.180 | 0.964 |
+| Clinical + sensor (1,846 with a recording) | 0.0763 | 0.80 | 0.622 | 0.182 | 0.967 |
+
+At a 10% prevalence a positive result is a prompt to investigate, not a
+diagnosis. Each threshold is chosen on the same predictions it is scored on, so
+those figures are not independent estimates.
 
 ### Confidence
 
@@ -74,10 +93,10 @@ detected:     0.5 + 0.5 × (p − t) / (1 − t)
 not detected: 0.5 + 0.5 × (t − p) / t
 ```
 
-The raw ensemble probability is returned separately as `probability`, so nothing
-is hidden.
+The fused probability is returned separately as `probability`, and each branch's
+own score in `branch_probabilities`, so nothing is hidden.
 
-## Sensor branch
+## Sensor branch and fusion
 
 Implements Sections 3.6–3.8 of the project report. Three parts:
 
@@ -97,15 +116,22 @@ Implements Sections 3.6–3.8 of the project report. Three parts:
 2. **Sensor model.** A standardised logistic regression maps the ten features to
    `p_s`.
 
-3. **Fusion layer.** Availability-masked logistic stacking, with `m = 1` when a
-   valid recording exists:
+3. **Fusion layer.** Availability-masked logistic stacking over the ensemble
+   (`l_c`), the NHANES clinical model (`l_r`) and the sensor model (`l_s`), with
+   `m = 1` when a valid recording exists:
 
    ```
-   logit p_f = b0 + b1·l_c + b2·m·l_s + b3·m + b4·m·l_c        (l = logit p)
+   logit p_f = b0 + b1·l_c + b2·l_r + b3·m·l_s + b4·m + b5·m·l_c + b6·m·l_r
    ```
 
-   With `m = 0` the fused score is a monotone recalibration of the clinical score,
-   so missing accelerometry never needs imputing.
+   (`l = logit p`.) Every verdict goes through it. With `m = 0` it combines and
+   recalibrates the two clinical branches, so missing accelerometry never needs
+   imputing. When it is trained, every participant with a recording also appears
+   once with the recording withheld (`m = 0`). The no-recording path therefore
+   learns from all 2,455 participants, not just the 609 whose recording failed
+   the wear rules. Every branch carries a positive net weight. Per SD of logit,
+   for a patient with a recording, the weights are 0.29 for the ensemble, 0.57
+   for the NHANES model and 0.66 for the sensor model.
 
 **Data.** NHANES 2003–2004 is the only public cohort with both the ABI and
 accelerometry. Adults 40+ with an ABI, excluding ABI > 1.40, give 2,455
@@ -114,43 +140,46 @@ recording. The paper reports 1,919. The difference is the calibration flag:
 94 participants have `PAXCAL ≠ 1`, and dropping that rule gives 1,924.
 
 **Evaluation.** 20 × 5 repeated nested cross-validation, stratified by outcome
-and availability. The sensor model is fitted on training-fold participants with
-a recording, and the stacker on inner out-of-fold sensor scores. The clinical
-ensemble is the frozen one in `src/models`. Results for participants with a
-valid recording:
+and availability. Within each outer training fold, the NHANES clinical model and
+the sensor model are fitted, and the stacker is fitted on their inner
+out-of-fold scores. The ensemble is the frozen one in `src/models`.
+
+Results for participants with a valid recording (n = 1,846, 175 PAD):
 
 | Model | ROC-AUC (95% CI) | PR-AUC | Calibration slope |
 | --- | --- | --- | --- |
-| Clinical ensemble | 0.740 (0.703–0.778) | 0.237 | 0.45 |
+| Clinical ensemble (raw) | 0.740 (0.703–0.778) | 0.237 | 0.45 |
+| NHANES clinical model | 0.777 (0.740–0.812) | 0.261 | 1.15 |
+| Clinical branches, no sensor | 0.776 (0.738–0.812) | 0.262 | 1.00 |
 | Accelerometry only | 0.751 (0.711–0.788) | 0.251 | 0.93 |
 | Early fusion (LR, 23 inputs + mask) | 0.791 (0.755–0.826) | 0.290 | 0.90 |
-| **Masked stacking** | **0.781 (0.746–0.817)** | **0.287** | **1.00** |
+| **Masked stacking** | **0.790 (0.755–0.827)** | **0.295** | **0.99** |
 
-- **Gain from accelerometry:** +0.041 AUC (0.017–0.063).
+Clinical-only mode across all 2,455 participants: ROC-AUC **0.762**
+(0.730–0.793), calibration slope **1.00**. The raw ensemble scores 0.733 with a
+slope of 0.43.
+
+- **Gain from the NHANES branch:** +0.029 AUC (0.014–0.046) in clinical-only
+  mode, and +0.050 (0.024–0.073) for the fused score over the raw ensemble.
+- **Gain from accelerometry** over the same model without the sensor term:
+  +0.014 AUC (−0.002 to 0.029). It was +0.041 before the NHANES branch existed,
+  because much of that gain was the stacker correcting a poor clinical score; a
+  better clinical branch leaves less for the sensor to add.
 - **Negative control:** shuffling the activity features among participants with
-  a recording and rerunning everything 50 times gives −0.003 on average
-  (max +0.002), so p = 0.02, the smallest attainable with 50 runs.
-- **No recording:** the fused calibration slope is 0.97.
+  a recording and rerunning everything 50 times gives −0.001 on average
+  (max +0.003), so p = 0.02, the smallest attainable with 50 runs. The sensor
+  signal is real, but its 95% interval now touches zero.
 
-The gain is larger than the paper's +0.012 because the clinical branch here is
-trained on the augmented 50,000-record cohort. On real NHANES data it ranks
-worse (0.740 vs 0.791) and is miscalibrated (slope 0.45), and the stacker
-recalibrates it. These are cross-validated estimates, not external validation.
-
-**Threshold.** `0.0694` is the largest fused score that reaches sensitivity 0.80
-on the cross-validated predictions (specificity 0.586, NPV 0.966). It is read at
-startup from `src/results/sensor/fusion_metrics.csv`. Because it is chosen on the
-same predictions, those two figures are not independent estimates.
+These are cross-validated estimates, not external validation.
 
 **In the form.** One *Run screening* button scores from any tab. The clinical
 record is always required. The Sensor tab starts blank: left blank, the record
-is scored by the clinical ensemble alone; with all ten fields filled, the
-fused score is used. A partly filled Sensor tab is rejected rather than
-imputed.
+is scored in clinical-only mode; with all ten fields filled, the sensor branch
+is added. A partly filled Sensor tab is rejected rather than imputed.
 
-The sensor branch accepts ages 18–85, like the clinical form. NHANES measured
-the ABI only from age 40, so for ages 18–39 the sensor model and fusion layer
-are extrapolating, with no validation data there. Consumer wrist wearables are
+The form accepts ages 18–85. NHANES measured the ABI only from age 40, so for
+ages 18–39 the NHANES clinical model, the sensor model and the fusion layer are
+all extrapolating, with no validation data there. Consumer wrist wearables are
 also untested: the features describe a hip-worn research device.
 
 ## Layout
@@ -161,13 +190,13 @@ src/
 │  ├─ main.py          routes, template rendering, static mount
 │  └─ schemas.py       request validation, response contract
 ├─ prediction/
-│  ├─ ensemble.py      loads the three pipelines, soft-vote, threshold
-│  ├─ fusion.py        sensor model + availability-masked stacking
+│  ├─ ensemble.py      loads the three pipelines, soft-vote
+│  ├─ fusion.py        NHANES clinical + sensor models, masked stacking, thresholds
 │  └─ abi.py           ABI band lookup and reference table
 ├─ templates/
 │  └─ index.html       intake form and result readout
 ├─ static/             style.css, app.js
-├─ models/             clinical pipelines, sensor model, stacking layer
+├─ models/             clinical pipelines, NHANES clinical model, sensor model, stacking layer
 ├─ data/               PAD_dataset_50000.csv, PAD_nhanes_2003_2004_sensor.csv
 ├─ results/            clinical metrics, importances, figures
 │  └─ sensor/          fusion metrics, AUC gain, negative control, figures
@@ -216,23 +245,26 @@ Open <http://127.0.0.1:8000>. Interactive API docs are at `/docs`.
 {
   "pad_detected": true,
   "verdict": "PAD detected",
-  "confidence": 0.8618,
-  "probability": 0.7598,
+  "confidence": 0.6884,
+  "probability": 0.4275,
   "risk": {
     "value": 0.72,
     "band": "moderate",
     "label": "Mild to moderate PAD",
     "detail": "Reduced flow consistent with peripheral arterial disease."
   },
-  "threshold": 0.1309
+  "threshold": 0.0813,
+  "modalities": ["clinical"],
+  "branch_probabilities": {"clinical": 0.9798, "nhanes": 0.3601}
 }
 ```
 
-The response also carries `modalities` (`["clinical"]`) and
-`branch_probabilities` (`{"clinical": 0.7598}`).
+The ensemble alone would put this patient at 98%; on real patients the
+calibrated score is 43%. Both are well above the threshold.
 
 Add an `Accelerometry` object to use the sensor branch. The verdict,
-`probability`, `confidence` and `threshold` then come from the fused score:
+`probability`, `confidence` and `threshold` then come from the sensor-mode
+score:
 
 ```json
 {
@@ -246,14 +278,16 @@ Add an `Accelerometry` object to use the sensor branch. The verdict,
 ```
 
 The response then has `"modalities": ["clinical", "sensor"]`, a `sensor` entry in
-`branch_probabilities`, and `"threshold": 0.0694`.
+`branch_probabilities` (0.322 here), `"probability": 0.534` and
+`"threshold": 0.0763`.
 
 Optional fields accept `null`. Out-of-range values return `422` with the offending
 field named.
 
 ### `GET /api/health`
 
-Reports which pipelines loaded, the clinical threshold and `sensor_threshold`.
+Reports which ensemble pipelines loaded, the clinical-only `threshold` and
+`sensor_threshold`.
 
 ## Retraining
 
@@ -264,20 +298,21 @@ python src/train/train_clinical.py
 Reads `src/data/PAD_dataset_50000.csv` and writes the three `.joblib` pipelines to
 `src/models/`, metrics and importances to `src/results/`, and figures to
 `src/results/figures/`. Per-model checkpoints land in `src/train/.cache/` so an
-interrupted run resumes; delete that directory to force a clean retrain. The API
-picks up new thresholds on the next restart.
+interrupted run resumes; delete that directory to force a clean retrain.
 
 ```bash
 python src/train/build_sensor_dataset.py   # ~10 min; downloads ~450 MB once
-python src/train/train_sensor.py           # ~10 min; mostly the negative control
+python src/train/train_sensor.py           # ~35 min; mostly the negative control
 ```
 
 The first command downloads the NHANES 2003–2004 files into `src/data/nhanes_raw/`
 (git-ignored) and writes `src/data/PAD_nhanes_2003_2004_sensor.csv`. The second
-fits the sensor branch on top of the current clinical pipelines. Run it again
-whenever the clinical models change. It writes
+fits the NHANES clinical model, the sensor branch and the fusion layer on top of
+the current ensemble, and sets both thresholds. Run it again whenever the
+clinical pipelines change. It writes `nhanes_clinical_logistic_regression.joblib`,
 `sensor_logistic_regression.joblib` and `fusion_stacking.joblib` to
-`src/models/`, and its results and figures to `src/results/sensor/`.
+`src/models/`, and its results and figures to `src/results/sensor/`. The API
+picks up new models and thresholds on the next restart.
 
 ## Tests
 

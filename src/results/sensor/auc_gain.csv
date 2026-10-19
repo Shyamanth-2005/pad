@@ -1,5 +1,7 @@
-subset,n,n_pad,baseline,auc_clinical,auc_fused,auc_gain,ci_low,ci_high,permutation_p
-valid_recording,1846,175,clinical_ensemble,0.7401,0.7812,0.0411,0.0169,0.0633,0.0196
-all_participants,2455,246,clinical_recalibrated,0.7311,0.7641,0.033,0.0165,0.0503,
-valid_recording_diabetes,241,41,clinical_ensemble,0.6848,0.702,0.0172,-0.0624,0.0967,
-valid_recording_no_diabetes,1605,134,clinical_ensemble,0.7393,0.7839,0.0445,0.021,0.07,
+subset,n,n_pad,model,baseline,auc_baseline,auc_model,auc_gain,ci_low,ci_high,permutation_p
+valid_recording,1846,175,masked_stacking,clinical_recalibrated,0.7763,0.7903,0.014,-0.0018,0.0289,0.0196
+all_participants,2455,246,masked_stacking,clinical_recalibrated,0.7631,0.7745,0.0114,0.0,0.0228,
+valid_recording_diabetes,241,41,masked_stacking,clinical_recalibrated,0.7013,0.7034,0.0021,-0.054,0.0503,
+valid_recording_no_diabetes,1605,134,masked_stacking,clinical_recalibrated,0.7796,0.7942,0.0146,-0.0015,0.0312,
+valid_recording,1846,175,masked_stacking,clinical_ensemble,0.7401,0.7903,0.0502,0.0238,0.0727,
+all_participants,2455,246,clinical_only,clinical_ensemble,0.7325,0.762,0.0295,0.0138,0.0456,

@@ -1,6 +1,8 @@
 term,coefficient
-intercept,-1.7222
-l_c,0.3618
-m*l_s,0.6631
-m,1.281
-m*l_c,-0.0409
+intercept,-0.3453
+l_c,0.131
+l_r,0.7916
+m*l_s,0.5267
+m,0.6411
+m*l_c,0.0121
+m*l_r,-0.2309

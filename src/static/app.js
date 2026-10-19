@@ -20,7 +20,7 @@ const ratio = document.getElementById("ratio");
 const branches = document.getElementById("branches");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
-const OPTIONAL = new Set(["HbA1c", "Diabetes", "Medical_History_Hypertension"]);
+const OPTIONAL = new Set(["HbA1c", "Smoking", "Diabetes", "Medical_History_Hypertension"]);
 const NUMERIC = new Set(["Age", "BMI", "HbA1c", "SBP", "DBP",
                          "Total_Cholesterol", "HDL", "ABI"]);
 
@@ -61,6 +61,10 @@ function syncSensorRequired() {
   return entered;
 }
 
+function asPercent(fraction) {
+  return `${(fraction * 100).toFixed(1)}%`;
+}
+
 function describeProblem(detail) {
   if (typeof detail === "string") return detail;
   if (!Array.isArray(detail)) return "Could not score this record.";
@@ -77,10 +81,11 @@ function render(data) {
   verdict.classList.toggle("is-clear", !data.pad_detected);
   const fused = data.modalities.includes("sensor");
   verdictLabel.textContent = data.verdict;
-  const basis = fused ? "Clinical and sensor branches fused. " : "";
+  const basis = fused ? "Clinical and sensor data" : "Clinical data only";
+  const cutoff = asPercent(data.threshold);
   verdictSub.textContent = data.pad_detected
-    ? `${basis}Scored above the screening threshold of ${data.threshold}`
-    : `${basis}Scored below the screening threshold of ${data.threshold}`;
+    ? `${basis}. Scored above the ${cutoff} screening threshold.`
+    : `${basis}. Scored below the ${cutoff} screening threshold.`;
 
   riskLabel.textContent = data.risk.label;
   riskLabel.className = `risk-label band-${data.risk.band}`;
@@ -97,14 +102,11 @@ function render(data) {
     row.classList.toggle("is-active", row.dataset.legend === data.risk.band);
   }
 
-  const percent = data.confidence * 100;
-  confidence.textContent = `${percent.toFixed(1)}%`;
-  meterFill.style.width = `${percent}%`;
-  const chance = (data.probability * 100).toFixed(1);
-  const source = fused ? "Fused" : "Ensemble";
-  confidenceNote.textContent = data.pad_detected
-    ? `How far above the threshold this record scored. ${source} probability of PAD: ${chance}%.`
-    : `How far below the threshold this record scored. ${source} probability of PAD: ${chance}%.`;
+  confidence.textContent = asPercent(data.confidence);
+  meterFill.style.width = `${data.confidence * 100}%`;
+  const side = data.pad_detected ? "above" : "below";
+  confidenceNote.textContent = `How far ${side} the threshold this record scored. ` +
+    `Combined probability of PAD: ${asPercent(data.probability)}.`;
 
   renderBranches(data, fused);
 
@@ -114,17 +116,18 @@ function render(data) {
 }
 
 function renderBranches(data, fused) {
-  const rows = [["Clinical ensemble", data.branch_probabilities.clinical, !fused]];
-  if (fused) {
-    rows.push(["Sensor model", data.branch_probabilities.sensor, false]);
-    rows.push(["Fused", data.probability, true]);
-  }
+  const rows = [
+    ["Clinical ensemble", data.branch_probabilities.clinical, false],
+    ["NHANES clinical model", data.branch_probabilities.nhanes, false],
+  ];
+  if (fused) rows.push(["Sensor model", data.branch_probabilities.sensor, false]);
+  rows.push(["Combined", data.probability, true]);
   branches.replaceChildren();
   for (const [name, value, final] of rows) {
     const term = document.createElement("dt");
     const detail = document.createElement("dd");
     term.textContent = name;
-    detail.textContent = `${(value * 100).toFixed(1)}%`;
+    detail.textContent = asPercent(value);
     detail.className = "readout-number";
     if (final) {
       term.classList.add("is-final");

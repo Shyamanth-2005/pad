@@ -46,23 +46,25 @@ def health():
     fusion = get_fusion()
     return {"status": "ok",
             "models": sorted(ensemble.models),
-            "threshold": ensemble.threshold,
-            "sensor_threshold": fusion.threshold}
+            "threshold": fusion.clinical_threshold,
+            "sensor_threshold": fusion.sensor_threshold}
 
 
 @app.post("/api/predict", response_model=PredictionResponse)
 def predict(patient: PatientInput):
+    features = patient.to_features()
+    sensor = patient.Accelerometry.model_dump() if patient.Accelerometry else None
     try:
-        result = get_ensemble().predict(patient.to_features())
-        branches = {"clinical": result["probability"]}
-        if patient.Accelerometry is not None:
-            # With a valid recording the fused score replaces the clinical one.
-            result = get_fusion().predict(result["probability"],
-                                          patient.Accelerometry.model_dump())
-            branches["sensor"] = result["sensor_probability"]
+        clinical_probability = get_ensemble().predict(features)["probability"]
+        # Every verdict comes from the fusion layer: with m = 0 it combines and
+        # recalibrates the two clinical branches on real patients.
+        result = get_fusion().predict(clinical_probability, features, sensor)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
+    branches = {"clinical": clinical_probability, "nhanes": result["cohort_probability"]}
+    if sensor is not None:
+        branches["sensor"] = result["sensor_probability"]
     return PredictionResponse(
         pad_detected=result["pad_detected"],
         verdict="PAD detected" if result["pad_detected"] else "No PAD detected",
@@ -70,6 +72,6 @@ def predict(patient: PatientInput):
         probability=result["probability"],
         risk=classify_abi(patient.ABI),
         threshold=result["threshold"],
-        modalities=list(branches),
+        modalities=["clinical", "sensor"] if sensor is not None else ["clinical"],
         branch_probabilities=branches,
     )

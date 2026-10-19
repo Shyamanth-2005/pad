@@ -1,29 +1,35 @@
 """
-Sensor branch and availability-masked fusion (report Sections 3.6-3.8, Alg. 4.3).
+Real-cohort clinical branch, sensor branch and availability-masked fusion
+(report Sections 3.6-3.8, Alg. 4.3).
 
 Data:   PAD_nhanes_2003_2004_sensor.csv, built by build_sensor_dataset.py
         (NHANES 2003-2004, adults 40+, PAD = minimum ABI <= 0.90).
-Models: sensor branch  - standardised logistic regression on ten activity features
-        fusion layer    - logistic stacking on [l_c, m*l_s, m, m*l_c]  (eq. 3.2)
-        comparators     - clinical score recalibrated per mask pattern, and an
+Models: NHANES clinical - logistic regression on the 13 clinical features, fitted
+                          on this real cohort (the frozen ensemble is fitted on
+                          augmented data and ranks real patients worse)
+        sensor branch   - standardised logistic regression on ten activity features
+        fusion layer    - logistic stacking on [l_c, l_r, m*l_s, m, m*l_c, m*l_r]
+        comparators     - the same stacking without the sensor term (clinical
+                          branches recalibrated per mask pattern), and an
                           early-fusion logistic regression on all 23 inputs + mask
 
 The clinical score l_c comes from the frozen clinical ensemble in src/models,
 which never sees these participants during training. Accelerometry exists only
-in this cycle, so the sensor model and fusion layer are evaluated by repeated
-nested cross-validation (20 x 5 outer folds, 5 inner folds), stratified by
-outcome and availability. In each outer training fold the sensor model is fitted
-on participants with a valid recording, the stacking layer is fitted on inner
-out-of-fold sensor scores, and only then is the held-out fold scored. These are
+in this cycle, so the NHANES clinical model, sensor model and fusion layer are
+evaluated by repeated nested cross-validation (20 x 5 outer folds, 5 inner
+folds), stratified by outcome and availability. In each outer training fold the
+two NHANES-fitted branches are fitted, the stacking layer is fitted on their
+inner out-of-fold scores, and only then is the held-out fold scored. These are
 cross-validated, not external, estimates.
 
 A permutation negative control re-runs the whole procedure with the activity
-features shuffled among participants who have a recording: any gain it shows is
-leakage or optimism, not signal.
+features shuffled among participants who have a recording: any gain it shows
+over the same model without the sensor term is leakage or optimism, not signal.
 
-For deployment the sensor model and fusion layer are refitted once on all
-participants, and the threshold is the largest score reaching sensitivity 0.80
-on the cross-validated fused predictions of participants with a recording.
+For deployment every branch and the fusion layer are refitted once on all
+participants. Each mode gets the largest threshold reaching sensitivity 0.80 on
+its cross-validated predictions: participants with a recording for the fused
+score, and all participants scored with m = 0 for clinical-only use.
 """
 import json
 import sys
@@ -52,8 +58,9 @@ sys.path.insert(0, str(ROOT))
 
 from src.prediction.ensemble import (CATEGORICAL_FEATURES, FEATURES,  # noqa: E402
                                      NUMERIC_FEATURES, get_ensemble)
-from src.prediction.fusion import (FUSION_MODEL_FILE, SENSOR_FEATURES,  # noqa: E402
-                                   SENSOR_MODEL_FILE, logit, stacking_design)
+from src.prediction.fusion import (COHORT_MODEL_FILE, FUSION_MODEL_FILE,  # noqa: E402
+                                   SENSOR_FEATURES, SENSOR_MODEL_FILE, logit,
+                                   stacking_design)
 
 warnings.filterwarnings("ignore")
 SEED = 42
@@ -63,7 +70,10 @@ N_INNER_FOLDS = 5
 N_NEGATIVE_CONTROL = 50
 N_BOOTSTRAP = 1000
 TARGET_SENSITIVITY = 0.80
-# Stacking has four coefficients and ~2,000 rows; a large C leaves it effectively
+# 246 events for ~15 encoded clinical columns: mild shrinkage keeps the NHANES
+# clinical model stable across folds.
+COHORT_C = 0.1
+# Stacking has six coefficients and ~2,000 rows; a large C leaves it effectively
 # unpenalised so the fused probabilities stay calibrated.
 STACKING_C = 1e4
 
@@ -90,6 +100,18 @@ p_clinical = np.mean([model.predict_proba(clinical_frame)[:, 1]
                       for model in ensemble.models.values()], axis=0)
 
 
+def cohort_pipeline() -> Pipeline:
+    """The clinical features refitted on the real cohort (branch l_r)."""
+    numeric = Pipeline([("impute", SimpleImputer(strategy="median")),
+                        ("scale", StandardScaler())])
+    categorical = Pipeline([("impute", SimpleImputer(strategy="most_frequent")),
+                            ("onehot", OneHotEncoder(handle_unknown="ignore", drop="first"))])
+    prep = ColumnTransformer([("num", numeric, NUMERIC_FEATURES),
+                              ("cat", categorical, CATEGORICAL_FEATURES)])
+    return Pipeline([("prep", prep),
+                     ("clf", LogisticRegression(C=COHORT_C, max_iter=3000))])
+
+
 def sensor_pipeline() -> Pipeline:
     return Pipeline([("impute", SimpleImputer(strategy="median")),
                      ("scale", StandardScaler()),
@@ -111,55 +133,76 @@ def stacker() -> LogisticRegression:
     return LogisticRegression(C=STACKING_C, max_iter=2000)
 
 
-def recalibration_design(clinical_probability, availability) -> np.ndarray:
-    """Eq. (3.2) without the sensor term: the clinical-only counterpart."""
-    return np.delete(stacking_design(clinical_probability, np.nan, availability), 1, axis=1)
+def recalibration_design(clinical_probability, cohort_probability, availability) -> np.ndarray:
+    """The fusion design without the m*l_s column: the no-sensor counterpart."""
+    return np.delete(stacking_design(clinical_probability, cohort_probability, np.nan,
+                                     availability), 2, axis=1)
 
 
-def inner_oof_sensor(features: pd.DataFrame, outcome: np.ndarray, seed: int) -> np.ndarray:
-    """Out-of-fold sensor scores, so the stacker never sees overfitted scores."""
+def inner_oof(make_model, features: pd.DataFrame, outcome: np.ndarray, seed: int) -> np.ndarray:
+    """Out-of-fold branch scores, so the stacker never sees overfitted scores."""
     scores = np.empty(len(outcome))
     folds = StratifiedKFold(N_INNER_FOLDS, shuffle=True, random_state=seed)
     for fit_idx, score_idx in folds.split(features, outcome):
-        model = sensor_pipeline().fit(features.iloc[fit_idx], outcome[fit_idx])
+        model = make_model().fit(features.iloc[fit_idx], outcome[fit_idx])
         scores[score_idx] = model.predict_proba(features.iloc[score_idx])[:, 1]
     return scores
 
 
 def fit_fusion(train_idx: np.ndarray, sensor_features: pd.DataFrame, seed: int):
-    """Fit the sensor model and the stacking layer on one set of rows."""
+    """Fit both NHANES branches, the stacking layer and its no-sensor counterpart."""
+    cohort = cohort_pipeline().fit(clinical_frame.iloc[train_idx], y[train_idx])
+    p_cohort_train = inner_oof(cohort_pipeline, clinical_frame.iloc[train_idx],
+                               y[train_idx], seed)
     with_recording = train_idx[has_recording[train_idx]]
     sensor = sensor_pipeline().fit(sensor_features.iloc[with_recording], y[with_recording])
     p_sensor_train = pd.Series(np.nan, index=train_idx)
-    p_sensor_train[with_recording] = inner_oof_sensor(
-        sensor_features.iloc[with_recording], y[with_recording], seed)
-    design = stacking_design(p_clinical[train_idx], p_sensor_train.to_numpy(), mask[train_idx])
-    stack = stacker().fit(design, y[train_idx])
-    return sensor, stack
+    p_sensor_train[with_recording] = inner_oof(
+        sensor_pipeline, sensor_features.iloc[with_recording], y[with_recording], seed)
+    # Rows with a recording enter a second time with it withheld (m = 0), so the
+    # no-recording path learns from every participant, as the app uses it, not
+    # only from the minority whose recording failed the wear rules.
+    rec = has_recording[train_idx]
+    clinical = np.r_[p_clinical[train_idx], p_clinical[train_idx][rec]]
+    cohort_scores = np.r_[p_cohort_train, p_cohort_train[rec]]
+    sensor_scores = np.r_[p_sensor_train.to_numpy(), np.full(rec.sum(), np.nan)]
+    availability = np.r_[mask[train_idx], np.zeros(rec.sum())]
+    outcome = np.r_[y[train_idx], y[train_idx][rec]]
+    stack = stacker().fit(stacking_design(clinical, cohort_scores, sensor_scores,
+                                          availability), outcome)
+    recal = stacker().fit(recalibration_design(clinical, cohort_scores, availability), outcome)
+    return cohort, sensor, stack, recal
 
 
 def nested_cv(sensor_features: pd.DataFrame, with_comparators: bool) -> dict:
-    """Algorithm 4.3; held-out predictions averaged over the repetitions."""
-    sums = {"fused": np.zeros(len(df)), "sensor": np.zeros(len(df))}
+    """Algorithm 4.3; held-out predictions averaged over the repetitions.
+
+    `clinical_only` scores every held-out participant with m = 0, as the app does
+    when no recording is supplied. `recalibrated` is the no-sensor baseline.
+    """
+    names = ["fused", "sensor", "cohort", "recalibrated", "clinical_only"]
     if with_comparators:
-        sums.update(recalibrated=np.zeros(len(df)), early=np.zeros(len(df)))
+        names.append("early")
+    sums = {name: np.zeros(len(df)) for name in names}
     strata = y * 2 + mask
     for repeat in range(N_REPEATS):
         folds = StratifiedKFold(N_FOLDS, shuffle=True, random_state=SEED + repeat)
         for train_idx, test_idx in folds.split(df, strata):
-            sensor, stack = fit_fusion(train_idx, sensor_features, SEED + repeat)
+            cohort, sensor, stack, recal = fit_fusion(train_idx, sensor_features, SEED + repeat)
+            p_cohort_test = cohort.predict_proba(clinical_frame.iloc[test_idx])[:, 1]
             p_sensor_test = np.full(len(test_idx), np.nan)
             held_with = has_recording[test_idx]
             p_sensor_test[held_with] = sensor.predict_proba(
                 sensor_features.iloc[test_idx[held_with]])[:, 1]
+            sums["cohort"][test_idx] += p_cohort_test
             sums["sensor"][test_idx] += np.nan_to_num(p_sensor_test)
             sums["fused"][test_idx] += stack.predict_proba(stacking_design(
-                p_clinical[test_idx], p_sensor_test, mask[test_idx]))[:, 1]
+                p_clinical[test_idx], p_cohort_test, p_sensor_test, mask[test_idx]))[:, 1]
+            sums["clinical_only"][test_idx] += stack.predict_proba(stacking_design(
+                p_clinical[test_idx], p_cohort_test, np.nan, np.zeros(len(test_idx))))[:, 1]
+            sums["recalibrated"][test_idx] += recal.predict_proba(recalibration_design(
+                p_clinical[test_idx], p_cohort_test, mask[test_idx]))[:, 1]
             if with_comparators:
-                recal = stacker().fit(recalibration_design(
-                    p_clinical[train_idx], mask[train_idx]), y[train_idx])
-                sums["recalibrated"][test_idx] += recal.predict_proba(
-                    recalibration_design(p_clinical[test_idx], mask[test_idx]))[:, 1]
                 early = early_fusion_pipeline().fit(df.iloc[train_idx], y[train_idx])
                 sums["early"][test_idx] += early.predict_proba(df.iloc[test_idx])[:, 1]
     predictions = {name: total / N_REPEATS for name, total in sums.items()}
@@ -226,13 +269,14 @@ def evaluate(model: str, subset: str, rows: np.ndarray, probability: np.ndarray)
 
 
 def auc_gain(subset: str, rows: np.ndarray, better: np.ndarray, base: np.ndarray,
-             baseline: str) -> dict:
+             model: str, baseline: str) -> dict:
     gains = [roc_auc_score(y[s], better[s]) - roc_auc_score(y[s], base[s])
              for s in bootstrap_indices(rows)]
     low, high = np.percentile(gains, [2.5, 97.5])
     return {"subset": subset, "n": len(rows), "n_pad": int(y[rows].sum()),
-            "baseline": baseline, "auc_clinical": roc_auc_score(y[rows], base[rows]),
-            "auc_fused": roc_auc_score(y[rows], better[rows]),
+            "model": model, "baseline": baseline,
+            "auc_baseline": roc_auc_score(y[rows], base[rows]),
+            "auc_model": roc_auc_score(y[rows], better[rows]),
             "auc_gain": roc_auc_score(y[rows], better[rows]) - roc_auc_score(y[rows], base[rows]),
             "ci_low": low, "ci_high": high}
 
@@ -258,7 +302,8 @@ WITH = np.flatnonzero(has_recording)
 WITHOUT = np.flatnonzero(~has_recording)
 diabetic = (df["Diabetes"] == "Yes").to_numpy()
 
-MODELS = {"clinical_ensemble": p_clinical, "clinical_recalibrated": cv["recalibrated"],
+MODELS = {"clinical_ensemble": p_clinical, "nhanes_clinical": cv["cohort"],
+          "clinical_recalibrated": cv["recalibrated"], "clinical_only": cv["clinical_only"],
           "accelerometry_only": cv["sensor"], "early_fusion": cv["early"],
           "masked_stacking": cv["fused"]}
 rows = []
@@ -266,27 +311,37 @@ for name, p in MODELS.items():
     rows.append(evaluate(name, "valid_recording", WITH, p))
     if name != "accelerometry_only":
         rows.append(evaluate(name, "all_participants", ALL, p))
-for name in ("clinical_recalibrated", "masked_stacking"):
+for name in ("clinical_recalibrated", "clinical_only", "masked_stacking"):
     rows.append(evaluate(name, "no_recording", WITHOUT, MODELS[name]))
 
+# One operating point per mode the app serves.
 deployed_threshold = threshold_at_sensitivity(y[WITH], cv["fused"][WITH])
+clinical_threshold = threshold_at_sensitivity(y, cv["clinical_only"])
 rows.append({"model": "masked_stacking", "subset": "valid_recording",
              "operating_point": "deployed", "n": len(WITH), "n_pad": int(y[WITH].sum()),
              **at_threshold(WITH, cv["fused"], deployed_threshold)})
+rows.append({"model": "clinical_only", "subset": "all_participants",
+             "operating_point": "deployed", "n": len(ALL), "n_pad": int(y.sum()),
+             **at_threshold(ALL, cv["clinical_only"], clinical_threshold)})
 metrics = pd.DataFrame(rows)
 metrics.round(4).to_csv(RESULTS / "fusion_metrics.csv", index=False)
 
-# Within one mask pattern the clinical recalibration is monotone, so the raw
-# ensemble is the baseline. Pooled over both patterns, per-mask recalibration
-# alone changes the ranking, so the recalibrated score is the fair baseline there.
+# The first four rows are what accelerometry adds: the same stacking with and
+# without the sensor term. The last two compare against the frozen ensemble
+# alone, which is what the app scored with before the NHANES clinical branch.
 gains = pd.DataFrame([
-    auc_gain("valid_recording", WITH, cv["fused"], p_clinical, "clinical_ensemble"),
+    auc_gain("valid_recording", WITH, cv["fused"], cv["recalibrated"],
+             "masked_stacking", "clinical_recalibrated"),
     auc_gain("all_participants", ALL, cv["fused"], cv["recalibrated"],
-             "clinical_recalibrated"),
-    auc_gain("valid_recording_diabetes", WITH[diabetic[WITH]], cv["fused"], p_clinical,
-             "clinical_ensemble"),
-    auc_gain("valid_recording_no_diabetes", WITH[~diabetic[WITH]], cv["fused"], p_clinical,
-             "clinical_ensemble"),
+             "masked_stacking", "clinical_recalibrated"),
+    auc_gain("valid_recording_diabetes", WITH[diabetic[WITH]], cv["fused"],
+             cv["recalibrated"], "masked_stacking", "clinical_recalibrated"),
+    auc_gain("valid_recording_no_diabetes", WITH[~diabetic[WITH]], cv["fused"],
+             cv["recalibrated"], "masked_stacking", "clinical_recalibrated"),
+    auc_gain("valid_recording", WITH, cv["fused"], p_clinical,
+             "masked_stacking", "clinical_ensemble"),
+    auc_gain("all_participants", ALL, cv["clinical_only"], p_clinical,
+             "clinical_only", "clinical_ensemble"),
 ])
 
 # Negative control: shuffle activity features among participants with a recording.
@@ -296,14 +351,15 @@ for run in range(N_NEGATIVE_CONTROL):
     shuffled = X_sensor.copy()
     order = np.random.default_rng(SEED + 1000 + run).permutation(WITH)
     shuffled.iloc[WITH] = X_sensor.iloc[order].to_numpy()
-    fused = nested_cv(shuffled, with_comparators=False)["fused"]
-    control.append(roc_auc_score(y[WITH], fused[WITH]) - roc_auc_score(y[WITH], p_clinical[WITH]))
+    shuffled_cv = nested_cv(shuffled, with_comparators=False)
+    control.append(roc_auc_score(y[WITH], shuffled_cv["fused"][WITH])
+                   - roc_auc_score(y[WITH], shuffled_cv["recalibrated"][WITH]))
     if (run + 1) % 10 == 0:
         print(f"  negative control {run + 1}/{N_NEGATIVE_CONTROL} "
               f"({time.time() - started:.0f}s)", flush=True)
 control = np.array(control)
 p_permutation = (1 + np.sum(control >= observed_gain)) / (1 + len(control))
-gains["permutation_p"] = [p_permutation, np.nan, np.nan, np.nan]
+gains["permutation_p"] = [p_permutation] + [np.nan] * (len(gains) - 1)
 gains.round(4).to_csv(RESULTS / "auc_gain.csv", index=False)
 pd.DataFrame({"run": np.arange(1, len(control) + 1), "auc_gain": control}).round(5).to_csv(
     RESULTS / "negative_control.csv", index=False)
@@ -327,7 +383,8 @@ features.round(4).to_csv(RESULTS / "sensor_feature_summary.csv", index=False)
 
 # ------------------------------------------------------------------ deployment
 
-sensor_model, stacking_model = fit_fusion(ALL, X_sensor, SEED)
+cohort_model, sensor_model, stacking_model, _ = fit_fusion(ALL, X_sensor, SEED)
+joblib.dump(cohort_model, MODEL_DIR / COHORT_MODEL_FILE, compress=3)
 joblib.dump(sensor_model, MODEL_DIR / SENSOR_MODEL_FILE, compress=3)
 joblib.dump(stacking_model, MODEL_DIR / FUSION_MODEL_FILE, compress=3)
 
@@ -337,28 +394,33 @@ pd.DataFrame({"feature": SENSOR_FEATURES, "coef_per_sd": coef,
     RESULTS / "sensor_coefficients.csv", index=False)
 
 b = stacking_model.coef_[0]
-pd.DataFrame({"term": ["intercept", "l_c", "m*l_s", "m", "m*l_c"],
+pd.DataFrame({"term": ["intercept", "l_c", "l_r", "m*l_s", "m", "m*l_c", "m*l_r"],
               "coefficient": [stacking_model.intercept_[0], *b]}).round(4).to_csv(
     RESULTS / "fusion_coefficients.csv", index=False)
 
-# Relative weight of the two branches for patients with a recording, per SD of logit.
+# Relative weight of the branches for patients with a recording, per SD of logit.
 deployed_sensor = sensor_model.predict_proba(X_sensor.iloc[WITH])[:, 1]
-clinical_weight = (b[0] + b[3]) * logit(p_clinical[WITH]).std()
-sensor_weight = b[1] * logit(deployed_sensor).std()
+deployed_cohort = cohort_model.predict_proba(clinical_frame.iloc[WITH])[:, 1]
+clinical_weight = (b[0] + b[4]) * logit(p_clinical[WITH]).std()
+cohort_weight = (b[1] + b[5]) * logit(deployed_cohort).std()
+sensor_weight = b[2] * logit(deployed_sensor).std()
 
 predictions = pd.DataFrame({"SEQN": df["SEQN"], "PAD": y, "Sensor_Available": mask,
-                            "p_clinical": p_clinical, "p_clinical_recalibrated": cv["recalibrated"],
+                            "p_clinical": p_clinical, "p_nhanes_clinical": cv["cohort"],
+                            "p_clinical_recalibrated": cv["recalibrated"],
+                            "p_clinical_only": cv["clinical_only"],
                             "p_sensor": cv["sensor"], "p_early_fusion": cv["early"],
                             "p_fused": cv["fused"]})
 predictions.round(5).to_csv(RESULTS / "cv_predictions.csv", index=False)
 
 # ------------------------------------------------------------------ figures
-C = {"clinical_ensemble": "#2563eb", "accelerometry_only": "#059669",
-     "early_fusion": "#d97706", "masked_stacking": "#7c3aed"}
-STYLE = {"clinical_ensemble": "-", "accelerometry_only": "--",
+C = {"clinical_ensemble": "#2563eb", "clinical_recalibrated": "#0891b2",
+     "accelerometry_only": "#059669", "early_fusion": "#d97706", "masked_stacking": "#7c3aed"}
+STYLE = {"clinical_ensemble": "-", "clinical_recalibrated": "-.", "accelerometry_only": "--",
          "early_fusion": ":", "masked_stacking": "-"}
-LABEL = {"clinical_ensemble": "Clinical ensemble", "accelerometry_only": "Accelerometry only",
-         "early_fusion": "Early fusion (LR)", "masked_stacking": "Masked stacking"}
+LABEL = {"clinical_ensemble": "Clinical ensemble", "clinical_recalibrated": "Clinical branches",
+         "accelerometry_only": "Accelerometry only", "early_fusion": "Early fusion (LR)",
+         "masked_stacking": "Masked stacking"}
 yw = y[WITH]
 
 fig, axes = plt.subplots(2, 5, figsize=(17, 7.2))
@@ -440,7 +502,7 @@ fig, ax = plt.subplots(figsize=(8, 5.4))
 ax.plot(grid, [net_benefit(yw, cv["fused"][WITH], t) for t in grid],
         color=C["masked_stacking"], lw=2.4, label="Masked stacking")
 ax.plot(grid, [net_benefit(yw, cv["recalibrated"][WITH], t) for t in grid],
-        color=C["clinical_ensemble"], lw=1.8, label="Clinical ensemble (recalibrated)")
+        color=C["clinical_recalibrated"], lw=1.8, label="Clinical branches (no sensor)")
 ax.plot(grid, prevalence - (1 - prevalence) * grid / (1 - grid), color="#64748b",
         ls="--", lw=1.2, label="Refer all")
 ax.axhline(0, color="#111", lw=1, label="Refer none")
@@ -466,10 +528,10 @@ fig, ax = plt.subplots(1, 2, figsize=(13.5, 5))
 ax[0].hist(control, bins=15, color="#94a3b8", edgecolor="#fff")
 ax[0].axvline(observed_gain, color=C["masked_stacking"], lw=2.4,
               label=f"Observed gain {observed_gain:+.4f}")
-ax[0].set(xlabel="AUC gain over clinical (shuffled activity features)", ylabel="Runs",
+ax[0].set(xlabel="AUC gain over no-sensor model (shuffled activity features)", ylabel="Runs",
           title=f"Negative control — {N_NEGATIVE_CONTROL} permutations (p = {p_permutation:.3f})")
 ax[0].legend(fontsize=9)
-order = gains.iloc[::-1].reset_index(drop=True)
+order = gains[gains.baseline == "clinical_recalibrated"].iloc[::-1].reset_index(drop=True)
 ax[1].errorbar(order.auc_gain, range(len(order)),
                xerr=[order.auc_gain - order.ci_low, order.ci_high - order.auc_gain],
                fmt="o", color=C["masked_stacking"], ecolor="#64748b", capsize=3, ms=7)
@@ -488,13 +550,17 @@ plt.close(fig)
     "n_valid_recording": int(has_recording.sum()), "n_pad_valid_recording": int(yw.sum()),
     "sensor_features": SENSOR_FEATURES,
     "clinical_branch": "frozen soft vote of src/models/*_clinical.joblib",
+    "nhanes_clinical_branch": f"logistic regression, C={COHORT_C}, fitted on this cohort",
     "protocol": {"repeats": N_REPEATS, "outer_folds": N_FOLDS, "inner_folds": N_INNER_FOLDS,
                  "stratified_by": "PAD x Sensor_Available"},
     "negative_control_runs": N_NEGATIVE_CONTROL, "bootstrap_resamples": N_BOOTSTRAP,
     "deployed_threshold": deployed_threshold,
-    "threshold_rule": f"largest fused score with sensitivity >= {TARGET_SENSITIVITY} on CV "
-                      "predictions of participants with a recording",
+    "clinical_only_threshold": clinical_threshold,
+    "threshold_rule": f"largest score with sensitivity >= {TARGET_SENSITIVITY} on CV "
+                      "predictions: participants with a recording (fused), all "
+                      "participants scored with m = 0 (clinical only)",
     "branch_weight_per_sd_logit": {"clinical": float(clinical_weight),
+                                   "nhanes_clinical": float(cohort_weight),
                                    "sensor": float(sensor_weight)},
     "seed": SEED}, indent=2))
 
@@ -506,5 +572,6 @@ print("\n--- AUC gain ---")
 print(gains.round(4).to_string(index=False))
 print(f"\nNegative control mean gain {control.mean():+.4f} (SD {control.std():.4f}, "
       f"max {control.max():+.4f}); p = {p_permutation:.3f}")
-print(f"Deployed threshold {deployed_threshold:.4f}")
+print(f"Deployed thresholds: fused {deployed_threshold:.4f}, "
+      f"clinical only {clinical_threshold:.4f}")
 print(f"Done ({time.time() - started:.0f}s).")

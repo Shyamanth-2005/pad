@@ -81,6 +81,7 @@ body {
   color: var(--ink-faint);
 }
 .tabs button:hover { color: var(--ink); }
+.tab-note { font-size: 0.75rem; font-weight: 400; color: var(--ink-faint); }
 .tabs button[aria-selected="true"] {
   color: var(--accent-ink);
   border-bottom-color: var(--accent);
@@ -247,7 +248,8 @@ button {
   font-weight: 600;
   letter-spacing: -0.015em;
 }
-.risk-detail { margin: 6px 0 20px; color: var(--ink-soft); font-size: 0.88rem; max-width: 40ch; }
+/* Bottom margin clears the needle's value label, which sits above the track. */
+.risk-detail { margin: 6px 0 36px; color: var(--ink-soft); font-size: 0.88rem; max-width: 40ch; }
 
 /* ---------------------------------------------------------- abi scale */
 

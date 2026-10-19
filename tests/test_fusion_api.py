@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from src.api.main import app
+from src.prediction.ensemble import clinical_frame
 from src.prediction.fusion import (FUSION_METRICS_CSV, SENSOR_FEATURES, get_fusion,
                                    stacking_design)
 
@@ -13,6 +14,15 @@ CLINICAL = {
     "SBP": 158, "DBP": 88, "Total_Cholesterol": 236, "HDL": 38,
     "Medical_History_Hypertension": "Yes", "ABI": 0.72,
 }
+LOW_RISK = {
+    "Age": 45, "Sex": "Female", "Race": "Non-Hispanic White", "BMI": 24.0,
+    "Smoking": "Never", "Diabetes": "No", "HbA1c": 5.2,
+    "SBP": 112, "DBP": 70, "Total_Cholesterol": 180, "HDL": 65,
+    "Medical_History_Hypertension": "No", "ABI": 1.10,
+}
+# The clinical feature dict the fusion layer takes: the record minus the ABI.
+FEATURES = {**{k: v for k, v in CLINICAL.items() if k != "ABI"},
+            "TC_HDL_Ratio": round(236 / 38, 2)}
 # Typical of participants without PAD in NHANES 2003-2004 (feature medians).
 ACTIVE = {"Log_Total_Counts": 12.26, "Sedentary_Share": 0.585, "Light_Minutes": 331,
           "MVPA_Minutes": 10.9, "MVPA_Bout_Minutes": 0, "ASTP": 0.275, "SATP": 0.194,
@@ -30,41 +40,62 @@ def client():
 
 
 def test_stacking_design_ignores_sensor_when_mask_is_zero():
-    design = stacking_design([0.2, 0.2], [np.nan, 0.7], [0, 1])
-    clinical_logit = np.log(0.2 / 0.8)
-    assert design[0].tolist() == pytest.approx([clinical_logit, 0, 0, 0])
+    design = stacking_design([0.2, 0.2], [0.3, 0.3], [np.nan, 0.7], [0, 1])
+    clinical_logit, cohort_logit = np.log(0.2 / 0.8), np.log(0.3 / 0.7)
+    assert design[0].tolist() == pytest.approx([clinical_logit, cohort_logit, 0, 0, 0, 0])
     assert design[1].tolist() == pytest.approx(
-        [clinical_logit, np.log(0.7 / 0.3), 1, clinical_logit])
+        [clinical_logit, cohort_logit, np.log(0.7 / 0.3), 1, clinical_logit, cohort_logit])
 
 
-def test_without_recording_fusion_preserves_clinical_ranking():
-    stack = get_fusion().stacking_model
-    clinical = np.linspace(0.01, 0.95, 50)
-    fused = stack.predict_proba(stacking_design(clinical, np.nan, np.zeros(50)))[:, 1]
-    assert np.all(np.diff(fused) > 0)
-
-
-def test_threshold_is_the_deployed_row():
+@pytest.mark.parametrize("model, subset", [("masked_stacking", "valid_recording"),
+                                           ("clinical_only", "all_participants")])
+def test_thresholds_are_the_deployed_rows(model, subset):
     metrics = pd.read_csv(FUSION_METRICS_CSV)
-    row = metrics[(metrics.model == "masked_stacking") & (metrics.operating_point == "deployed")]
-    assert get_fusion().threshold == pytest.approx(row.threshold.iloc[0], abs=1e-4)
+    row = metrics[(metrics.model == model) & (metrics.subset == subset)
+                  & (metrics.operating_point == "deployed")]
+    fusion = get_fusion()
+    loaded = fusion.sensor_threshold if model == "masked_stacking" else fusion.clinical_threshold
+    assert loaded == pytest.approx(row.threshold.iloc[0], abs=1e-4)
     assert row.sensitivity.iloc[0] >= 0.80
 
 
 def test_less_activity_raises_sensor_and_fused_risk():
     fusion = get_fusion()
-    active = fusion.predict(0.2, ACTIVE)
-    inactive = fusion.predict(0.2, INACTIVE)
+    active = fusion.predict(0.2, FEATURES, ACTIVE)
+    inactive = fusion.predict(0.2, FEATURES, INACTIVE)
     assert inactive["sensor_probability"] > active["sensor_probability"]
     assert inactive["probability"] > active["probability"]
 
 
-def test_clinical_only_request_is_unchanged(client):
+def test_clinical_only_request_uses_both_clinical_branches(client):
     body = client.post("/api/predict", json=CLINICAL).json()
     health = client.get("/api/health").json()
     assert body["modalities"] == ["clinical"]
     assert body["threshold"] == health["threshold"]
-    assert body["branch_probabilities"] == {"clinical": body["probability"]}
+    assert set(body["branch_probabilities"]) == {"clinical", "nhanes"}
+    assert body["pad_detected"] == (body["probability"] >= body["threshold"])
+
+
+def test_clinical_only_ranks_higher_risk_records_higher(client):
+    high = client.post("/api/predict", json=CLINICAL).json()
+    low = client.post("/api/predict", json=LOW_RISK).json()
+    assert high["probability"] > low["probability"]
+    assert high["pad_detected"] and not low["pad_detected"]
+
+
+def test_clinical_frame_marks_unknown_values_as_nan():
+    # The imputers only recognise NaN; a None would reach the one-hot encoder
+    # and be read as its dropped reference level.
+    frame = clinical_frame({**FEATURES, "Smoking": None, "HbA1c": None})
+    assert np.isnan(frame["Smoking"].iloc[0])
+    assert np.isnan(frame["HbA1c"].iloc[0])
+
+
+def test_unknown_smoking_is_imputed_not_read_as_current(client):
+    current = client.post("/api/predict", json={**CLINICAL, "Smoking": "Current"}).json()
+    unknown = client.post("/api/predict", json={**CLINICAL, "Smoking": None}).json()
+    assert unknown["branch_probabilities"]["nhanes"] < current["branch_probabilities"]["nhanes"]
+    assert unknown["branch_probabilities"]["clinical"] < current["branch_probabilities"]["clinical"]
 
 
 def test_sensor_request_is_fused(client):
@@ -72,7 +103,7 @@ def test_sensor_request_is_fused(client):
     health = client.get("/api/health").json()
     assert body["modalities"] == ["clinical", "sensor"]
     assert body["threshold"] == health["sensor_threshold"]
-    assert set(body["branch_probabilities"]) == {"clinical", "sensor"}
+    assert set(body["branch_probabilities"]) == {"clinical", "nhanes", "sensor"}
     assert body["pad_detected"] == (body["probability"] >= body["threshold"])
     assert 0.5 <= body["confidence"] <= 1.0
 

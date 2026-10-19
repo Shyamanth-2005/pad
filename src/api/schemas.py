@@ -85,10 +85,12 @@ class PredictionResponse(BaseModel):
     verdict: str
     confidence: float = Field(description="0.5-1.0 confidence in the verdict returned")
     probability: float = Field(description="Probability of PAD the verdict is based on: "
-                                           "fused when accelerometry is supplied, "
-                                           "otherwise the clinical ensemble")
+                                           "the fusion layer's score, with the sensor "
+                                           "branch when accelerometry is supplied")
     risk: ABIAssessment
     threshold: float
     modalities: list[str] = Field(description="Branches that contributed to the verdict")
     branch_probabilities: dict[str, float] = Field(
-        description="Per-branch probability of PAD before fusion")
+        description="Per-branch probability of PAD before fusion: clinical "
+                    "(augmented-trained ensemble), nhanes (real-cohort model), "
+                    "sensor (when supplied)")

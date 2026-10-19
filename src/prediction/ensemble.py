@@ -5,15 +5,18 @@ encoding/scaling + classifier), so raw form values can be handed straight to
 predict_proba. The ensemble probability is the unweighted mean of the three -
 all three models score within 0.002 ROC-AUC of each other, so weighting them
 would be fitting noise.
+
+The ensemble is one branch, not the verdict: the fusion layer in fusion.py
+recalibrates it on real patients and owns the thresholds.
 """
 from pathlib import Path
 
 import joblib
+import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = ROOT / "src" / "models"
-METRICS_CSV = ROOT / "src" / "results" / "model_metrics.csv"
 
 MODEL_FILES = {
     "LogisticRegression": "logistic_regression_clinical.joblib",
@@ -27,13 +30,11 @@ CATEGORICAL_FEATURES = ["Sex", "Race", "Smoking", "Diabetes",
                         "Medical_History_Hypertension"]
 FEATURES = NUMERIC_FEATURES + CATEGORICAL_FEATURES
 
-FALLBACK_THRESHOLD = 0.5
-
 
 class PADEnsemble:
     """Loads the three pipelines once and scores one patient at a time."""
 
-    def __init__(self, model_dir: Path = MODEL_DIR, metrics_csv: Path = METRICS_CSV):
+    def __init__(self, model_dir: Path = MODEL_DIR):
         self.models = {}
         missing = []
         for name, filename in MODEL_FILES.items():
@@ -46,41 +47,31 @@ class PADEnsemble:
             raise FileNotFoundError(
                 f"Missing trained model(s) in {model_dir}: {', '.join(missing)}. "
                 "Run src/train/train_clinical.py first.")
-        self.threshold = self._load_threshold(metrics_csv)
-
-    @staticmethod
-    def _load_threshold(metrics_csv: Path) -> float:
-        """Mean of the per-model Youden-optimal thresholds from the training run.
-
-        Youden maximises sensitivity + specificity, which is the right operating
-        point for a screening tool where a missed case costs more than a recall.
-        """
-        if not metrics_csv.exists():
-            return FALLBACK_THRESHOLD
-        metrics = pd.read_csv(metrics_csv)
-        youden = metrics[metrics["operating_point"] == "youden"]
-        youden = youden[youden["model"].isin(MODEL_FILES)]
-        if youden.empty:
-            return FALLBACK_THRESHOLD
-        return round(float(youden["threshold"].mean()), 4)
 
     def predict(self, features: dict) -> dict:
         """Score one patient. `features` keys must cover FEATURES; None means missing."""
-        frame = pd.DataFrame([{name: features.get(name) for name in FEATURES}])
-        frame[NUMERIC_FEATURES] = frame[NUMERIC_FEATURES].astype("float64")
-
+        frame = clinical_frame(features)
         per_model = {name: float(model.predict_proba(frame)[0, 1])
                      for name, model in self.models.items()}
         probability = sum(per_model.values()) / len(per_model)
-        detected = probability >= self.threshold
-
         return {
-            "pad_detected": bool(detected),
             "probability": round(probability, 4),
-            "confidence": round(decision_confidence(probability, self.threshold), 4),
-            "threshold": self.threshold,
             "per_model": {k: round(v, 4) for k, v in per_model.items()},
         }
+
+
+def clinical_frame(features: dict) -> pd.DataFrame:
+    """One-row frame in pipeline column order, with unknown values as NaN.
+
+    The pipelines' imputers only recognise NaN, which is how the training CSVs
+    read. A None left in a categorical column would skip imputation and be
+    one-hot encoded as the dropped reference level ("Current" for Smoking).
+    """
+    frame = pd.DataFrame([{name: features.get(name) for name in FEATURES}])
+    frame[NUMERIC_FEATURES] = frame[NUMERIC_FEATURES].astype("float64")
+    categorical = frame[CATEGORICAL_FEATURES].astype(object)
+    frame[CATEGORICAL_FEATURES] = categorical.where(categorical.notna(), np.nan)
+    return frame
 
 
 def decision_confidence(probability: float, threshold: float) -> float:
