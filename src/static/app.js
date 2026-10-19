@@ -20,7 +20,7 @@ const ratio = document.getElementById("ratio");
 const branches = document.getElementById("branches");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
-const OPTIONAL = new Set(["HbA1c", "Smoking", "Diabetes", "Medical_History_Hypertension"]);
+const OPTIONAL = new Set(["HbA1c"]);
 const NUMERIC = new Set(["Age", "BMI", "HbA1c", "SBP", "DBP",
                          "Total_Cholesterol", "HDL", "ABI"]);
 

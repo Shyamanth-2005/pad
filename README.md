@@ -33,12 +33,14 @@ Thirteen columns, in the order the pipelines expect:
 `Medical_History_Hypertension`
 
 `TC_HDL_Ratio` is derived from total cholesterol and HDL, so the form computes it
-rather than asking for it. `HbA1c`, `Smoking`, `Diabetes` and
-`Medical_History_Hypertension` are nullable in the training data and stay
-optional in the form — each pipeline imputes them (median for numeric, most
-frequent for categorical). A blank field reaches the pipelines as `NaN`, the
-value their imputers recognise; before, a blank categorical was silently read as
-its reference level, so an unknown smoking status scored as "Current".
+rather than asking for it. `Smoking`, `Diabetes` and
+`Medical_History_Hypertension` are required in the form, since a patient can
+always answer them. `HbA1c` stays optional there, because it needs a lab test.
+All four are nullable in the training data and in the API, and each pipeline
+imputes a missing value (median for numeric, most frequent for categorical). A
+missing value reaches the pipelines as `NaN`, the value their imputers
+recognise. Before, a missing categorical was silently read as its reference
+level, so an unknown smoking status scored as "Current".
 
 ## ABI bands
 

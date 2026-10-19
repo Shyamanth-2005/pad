@@ -109,17 +109,15 @@
       <div class="fields">
         <label class="field">
           <span>Smoking</span>
-          <select name="Smoking">
-            <option value="">Not known</option>
-            <option selected>Never</option>
+          <select name="Smoking" required>
+            <option>Never</option>
             <option>Former</option>
             <option>Current</option>
           </select>
         </label>
         <label class="field">
           <span>Diabetes</span>
-          <select name="Diabetes">
-            <option value="">Not known</option>
+          <select name="Diabetes" required>
             <option>No</option>
             <option>Borderline</option>
             <option>Yes</option>
@@ -127,8 +125,7 @@
         </label>
         <label class="field">
           <span>Hypertension</span>
-          <select name="Medical_History_Hypertension">
-            <option value="">Not known</option>
+          <select name="Medical_History_Hypertension" required>
             <option>No</option>
             <option>Yes</option>
           </select>
