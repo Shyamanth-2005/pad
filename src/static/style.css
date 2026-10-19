@@ -338,19 +338,6 @@ button {
 }
 .confidence-note { margin: 0; font-size: 0.82rem; color: var(--ink-soft); max-width: 40ch; }
 
-/* ---------------------------------------------------------- branches */
-
-.branches {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 16px;
-  margin: 0;
-  font-size: 0.88rem;
-}
-.branches dt { color: var(--ink-soft); }
-.branches dd { margin: 0; text-align: right; }
-.branches .is-final { color: var(--ink); font-weight: 600; }
-
 /* ---------------------------------------------------------- footer */
 
 .footnote {

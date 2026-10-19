@@ -17,7 +17,6 @@ const confidence = document.getElementById("confidence");
 const meterFill = document.getElementById("meter-fill");
 const confidenceNote = document.getElementById("confidence-note");
 const ratio = document.getElementById("ratio");
-const branches = document.getElementById("branches");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
 const OPTIONAL = new Set(["HbA1c"]);
@@ -108,32 +107,8 @@ function render(data) {
   confidenceNote.textContent = `How far ${side} the threshold this record scored. ` +
     `Combined probability of PAD: ${asPercent(data.probability)}.`;
 
-  renderBranches(data, fused);
-
   if (window.matchMedia("(max-width: 900px)").matches) {
     result.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
-
-function renderBranches(data, fused) {
-  const rows = [
-    ["Clinical ensemble", data.branch_probabilities.clinical, false],
-    ["NHANES clinical model", data.branch_probabilities.nhanes, false],
-  ];
-  if (fused) rows.push(["Sensor model", data.branch_probabilities.sensor, false]);
-  rows.push(["Combined", data.probability, true]);
-  branches.replaceChildren();
-  for (const [name, value, final] of rows) {
-    const term = document.createElement("dt");
-    const detail = document.createElement("dd");
-    term.textContent = name;
-    detail.textContent = asPercent(value);
-    detail.className = "readout-number";
-    if (final) {
-      term.classList.add("is-final");
-      detail.classList.add("is-final");
-    }
-    branches.append(term, detail);
   }
 }
 
