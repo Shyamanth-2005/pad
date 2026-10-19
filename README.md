@@ -184,6 +184,96 @@ ages 18–39 the NHANES clinical model, the sensor model and the fusion layer ar
 all extrapolating, with no validation data there. Consumer wrist wearables are
 also untested: the features describe a hip-worn research device.
 
+## Examples
+
+Every result below comes from the current models through `POST /api/predict`.
+Typing the same values into the form gives the same verdict. The verdict
+compares the combined probability with the threshold for the mode used: 8.13%
+for clinical only, 7.63% with sensor data. The risk level is read from the ABI
+alone, so it can disagree with the verdict.
+
+### Clinical only
+
+**PAD detected.** A 71-year-old man who smokes, with diabetes and hypertension:
+
+```json
+{
+  "Age": 71, "Sex": "Male", "Race": "Non-Hispanic Black", "BMI": 31.2,
+  "Smoking": "Current", "Diabetes": "Yes", "HbA1c": 8.4,
+  "SBP": 158, "DBP": 88, "Total_Cholesterol": 236, "HDL": 38,
+  "Medical_History_Hypertension": "Yes", "ABI": 0.72
+}
+```
+
+**No PAD detected.** A 45-year-old woman who has never smoked, with normal
+blood pressure and lipids:
+
+```json
+{
+  "Age": 45, "Sex": "Female", "Race": "Non-Hispanic White", "BMI": 24.0,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 5.2,
+  "SBP": 112, "DBP": 70, "Total_Cholesterol": 180, "HDL": 65,
+  "Medical_History_Hypertension": "No", "ABI": 1.10
+}
+```
+
+| Record | Combined probability | Verdict | Confidence | Risk level |
+| --- | --- | --- | --- | --- |
+| 71-year-old man | 42.8% | PAD detected | 68.8% | Mild to moderate PAD |
+| 45-year-old woman | 1.2% | No PAD detected | 92.6% | Normal |
+
+### Clinical + sensor
+
+Sensor data matters most for borderline records, so these two examples are
+records the clinical data alone scores close to the threshold. Two activity
+profiles go in the Sensor tab (or the `Accelerometry` object):
+
+```jsonc
+// Inactive: low, fragmented activity, as seen with PAD
+{
+  "Log_Total_Counts": 11.2, "Sedentary_Share": 0.76, "Light_Minutes": 190,
+  "MVPA_Minutes": 0.5, "MVPA_Bout_Minutes": 0, "ASTP": 0.42, "SATP": 0.12,
+  "Peak30_Counts": 700, "Longest_Active_Bout": 12, "Log_PM_AM_Ratio": 0.1
+}
+
+// Active: the medians of NHANES participants without PAD
+{
+  "Log_Total_Counts": 12.26, "Sedentary_Share": 0.585, "Light_Minutes": 331,
+  "MVPA_Minutes": 10.9, "MVPA_Bout_Minutes": 0, "ASTP": 0.275, "SATP": 0.194,
+  "Peak30_Counts": 1928, "Longest_Active_Bout": 28.8, "Log_PM_AM_Ratio": 0.25
+}
+```
+
+**PAD detected.** A 60-year-old man who has never smoked, with hypertension,
+plus the *Inactive* profile:
+
+```json
+{
+  "Age": 60, "Sex": "Male", "Race": "Non-Hispanic White", "BMI": 28.0,
+  "Smoking": "Never", "Diabetes": "No", "HbA1c": 5.8,
+  "SBP": 136, "DBP": 78, "Total_Cholesterol": 205, "HDL": 48,
+  "Medical_History_Hypertension": "Yes", "ABI": 0.88
+}
+```
+
+**No PAD detected.** The same man at 64, a former smoker, with an ABI of 1.05
+(`"Age": 64, "Smoking": "Former", "ABI": 1.05`), plus the *Active* profile.
+
+| Record | Clinical only | With sensor data | Confidence | Risk level |
+| --- | --- | --- | --- | --- |
+| 60, never smoked + Inactive | 4.7%, No PAD detected | **10.9%, PAD detected** | 51.8% | Mild to moderate PAD |
+| 64, former smoker + Active | 8.8%, PAD detected | **6.9%, No PAD detected** | 54.7% | Normal |
+
+In both, the activity data reverses the clinical-only verdict. Confidence stays
+near 50% because the scores sit close to the threshold, which is what that number
+is meant to show. For clear-cut records the sensor data confirms rather than
+reverses: the 71-year-old with the *Inactive* profile scores 53.4% (PAD
+detected), and the 45-year-old with the *Active* profile scores 1.4% (no PAD).
+
+The 60-year-old also shows why the ABI is graded separately. On clinical data
+alone the screen misses him, but his measured ABI of 0.88 still reads as mild to
+moderate PAD.
+
 ## Layout
 
 ```
