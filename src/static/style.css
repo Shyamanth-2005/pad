@@ -107,7 +107,7 @@ body {
 
 /* ---------------------------------------------------------- form */
 
-.intake { min-width: 0; }
+.inputs, .intake { min-width: 0; }
 
 .group {
   border: 1px solid var(--rule);

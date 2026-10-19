@@ -142,6 +142,12 @@ on the cross-validated predictions (specificity 0.586, NPV 0.966). It is read at
 startup from `src/results/sensor/fusion_metrics.csv`. Because it is chosen on the
 same predictions, those two figures are not independent estimates.
 
+**In the form.** One *Run screening* button scores from any tab. The clinical
+record is always required. The Sensor tab starts blank: left blank, the record
+is scored by the clinical ensemble alone; with all ten fields filled, the
+fused score is used. A partly filled Sensor tab is rejected rather than
+imputed.
+
 The sensor branch accepts ages 18–85, like the clinical form. NHANES measured
 the ABI only from age 40, so for ages 18–39 the sensor model and fusion layer
 are extrapolating, with no validation data there. Consumer wrist wearables are

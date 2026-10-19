@@ -29,6 +29,8 @@
 
 <main class="workspace">
 
+  <div class="inputs">
+
   <form id="intake" class="intake" role="tabpanel" aria-labelledby="tab-clinical"
         tabindex="0" novalidate>
 
@@ -145,47 +147,43 @@
       </div>
     </fieldset>
 
-    <div class="actions">
-      <button type="submit" class="run">Run screening</button>
-      <button type="reset" class="clear">Clear form</button>
-      <p class="error" id="error" hidden></p>
-    </div>
   </form>
 
   <form id="sensor-intake" class="intake" role="tabpanel" aria-labelledby="tab-sensor"
         tabindex="0" novalidate hidden>
 
-    <p class="lede">Seven-day hip accelerometer summaries, each averaged over at
-       least four days with ten or more hours of wear. They are fused with the
-       record on the Clinical tab, so complete that first. The sensor model was
-       trained on adults aged 40 and over.</p>
+    <p class="lede">Optional. Seven-day hip accelerometer summaries, each averaged
+       over at least four days with ten or more hours of wear. Fill in all ten to
+       fuse them with the clinical record, or leave every field blank to screen on
+       the clinical record alone. The sensor model was trained on adults aged 40
+       and over.</p>
 
     <fieldset class="group">
       <legend>Activity volume</legend>
       <div class="fields">
         <label class="field">
           <span>Total activity</span>
-          <input type="number" name="Log_Total_Counts" min="0" max="18" step="any" value="12.26" required>
+          <input type="number" name="Log_Total_Counts" min="0" max="18" step="any" placeholder="e.g. 12.26">
           <em>log(1 + counts per day)</em>
         </label>
         <label class="field">
           <span>Sedentary share</span>
-          <input type="number" name="Sedentary_Share" min="0" max="1" step="any" value="0.585" required>
+          <input type="number" name="Sedentary_Share" min="0" max="1" step="any" placeholder="e.g. 0.585">
           <em>Share of wear time under 100 counts/min</em>
         </label>
         <label class="field">
           <span>Light activity</span>
-          <input type="number" name="Light_Minutes" min="0" max="1440" step="any" value="331" required>
+          <input type="number" name="Light_Minutes" min="0" max="1440" step="any" placeholder="e.g. 331">
           <em>Minutes/day at 100&ndash;2019 counts/min</em>
         </label>
         <label class="field">
           <span>Moderate to vigorous</span>
-          <input type="number" name="MVPA_Minutes" min="0" max="1440" step="any" value="10.9" required>
+          <input type="number" name="MVPA_Minutes" min="0" max="1440" step="any" placeholder="e.g. 10.9">
           <em>Minutes/day at 2020+ counts/min</em>
         </label>
         <label class="field">
           <span>MVPA in bouts</span>
-          <input type="number" name="MVPA_Bout_Minutes" min="0" max="1440" step="any" value="0" required>
+          <input type="number" name="MVPA_Bout_Minutes" min="0" max="1440" step="any" placeholder="e.g. 0">
           <em>Minutes/day in bouts of 10+ minutes</em>
         </label>
       </div>
@@ -196,43 +194,47 @@
       <div class="fields">
         <label class="field">
           <span>Active to sedentary</span>
-          <input type="number" name="ASTP" min="0" max="1" step="any" value="0.275" required>
+          <input type="number" name="ASTP" min="0" max="1" step="any" placeholder="e.g. 0.275">
           <em>Transition probability per active minute</em>
         </label>
         <label class="field">
           <span>Sedentary to active</span>
-          <input type="number" name="SATP" min="0" max="1" step="any" value="0.194" required>
+          <input type="number" name="SATP" min="0" max="1" step="any" placeholder="e.g. 0.194">
           <em>Transition probability per sedentary minute</em>
         </label>
         <label class="field">
           <span>Peak 30 minutes</span>
-          <input type="number" name="Peak30_Counts" min="0" max="32767" step="any" value="1928" required>
+          <input type="number" name="Peak30_Counts" min="0" max="32767" step="any" placeholder="e.g. 1928">
           <em>Mean counts/min of the 30 most active minutes</em>
         </label>
         <label class="field">
           <span>Longest active bout</span>
-          <input type="number" name="Longest_Active_Bout" min="0" max="1440" step="any" value="28.8" required>
+          <input type="number" name="Longest_Active_Bout" min="0" max="1440" step="any" placeholder="e.g. 28.8">
           <em>Minutes at 100+ counts/min</em>
         </label>
         <label class="field">
           <span>Afternoon to morning</span>
-          <input type="number" name="Log_PM_AM_Ratio" min="-18" max="18" step="any" value="0.25" required>
+          <input type="number" name="Log_PM_AM_Ratio" min="-18" max="18" step="any" placeholder="e.g. 0.25">
           <em>log of 12&ndash;18 h over 6&ndash;12 h counts</em>
         </label>
       </div>
     </fieldset>
 
-    <div class="actions">
-      <button type="submit" class="run">Run with sensor data</button>
-      <button type="reset" class="clear">Reset values</button>
-      <p class="error" id="sensor-error" hidden></p>
-    </div>
   </form>
 
   <section class="stub" id="panel-medical" role="tabpanel"
            aria-labelledby="tab-medical" tabindex="0" hidden>
     <p>Medical input is not wired up yet.</p>
   </section>
+
+  <!-- Outside the tab panels so one button scores from any tab. -->
+  <div class="actions">
+    <button type="submit" form="intake" class="run">Run screening</button>
+    <button type="button" class="clear" id="clear">Clear form</button>
+    <p class="error" id="error" hidden></p>
+  </div>
+
+  </div>
 
   <aside class="readout" id="readout" aria-live="polite">
 

@@ -1,7 +1,8 @@
 const form = document.getElementById("intake");
 const errorBox = document.getElementById("error");
 const sensorForm = document.getElementById("sensor-intake");
-const sensorErrorBox = document.getElementById("sensor-error");
+const sensorFields = [...sensorForm.querySelectorAll("input")];
+const clearButton = document.getElementById("clear");
 
 const placeholder = document.getElementById("placeholder");
 const result = document.getElementById("result");
@@ -49,6 +50,15 @@ function collectSensor() {
     summaries[name] = Number(raw);
   }
   return summaries;
+}
+
+// A blank Sensor tab means no recording, so the record is scored on clinical
+// data alone. Once any field is filled all ten become required: the sensor
+// model has no imputation, so a partial recording is an error, not a recording.
+function syncSensorRequired() {
+  const entered = sensorFields.some((input) => input.value.trim() !== "");
+  for (const input of sensorFields) input.required = entered;
+  return entered;
 }
 
 function describeProblem(detail) {
@@ -157,36 +167,36 @@ form.addEventListener("input", (event) => {
   }
 });
 
-form.addEventListener("reset", () => {
+sensorForm.addEventListener("input", syncSensorRequired);
+
+clearButton.addEventListener("click", () => {
+  form.reset();
+  sensorForm.reset();
+  syncSensorRequired();
   clearResult();
   errorBox.hidden = true;
   setTimeout(updateRatio);
 });
 
+// The one Run button submits the clinical form from any tab. A gap in either
+// form sends the user to that tab with the browser pointing at the field.
 form.addEventListener("submit", (event) => {
   event.preventDefault();
   errorBox.hidden = true;
-  if (!form.reportValidity()) return;
-  score(collect(), event.submitter, errorBox);
-});
-
-sensorForm.addEventListener("reset", () => {
-  clearResult();
-  sensorErrorBox.hidden = true;
-});
-
-sensorForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  sensorErrorBox.hidden = true;
-  // The fusion needs the clinical score, so an incomplete record sends the
-  // user back to the Clinical tab with the browser pointing at the gap.
   if (!form.checkValidity()) {
     selectTab(document.getElementById("tab-clinical"));
     form.reportValidity();
     return;
   }
-  if (!sensorForm.reportValidity()) return;
-  score({ ...collect(), Accelerometry: collectSensor() }, event.submitter, sensorErrorBox);
+  const hasSensor = syncSensorRequired();
+  if (!sensorForm.checkValidity()) {
+    selectTab(document.getElementById("tab-sensor"));
+    sensorForm.reportValidity();
+    return;
+  }
+  const payload = collect();
+  if (hasSensor) payload.Accelerometry = collectSensor();
+  score(payload, event.submitter, errorBox);
 });
 
 // ---------------------------------------------------------------- tabs
