@@ -4,28 +4,41 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>PAD Screening</title>
+<meta name="theme-color" content="#e6ece9">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Mono:wght@400;500;600&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/style.css?v={{ version }}">
 </head>
 <body>
 
 <header class="masthead">
+  <div class="brand">
+    <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M3 18h6l3-9 5 16 3-10 2 3h7" fill="none" stroke="currentColor"
+            stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <span>PAD Screening</span>
+  </div>
   <h1>Peripheral arterial disease screening</h1>
-  <p>Enter the clinical record and the measured ankle-brachial index. Clinical
-     models score the record and a fusion layer calibrates the result on real
-     patients; the ABI grades severity. A seven-day accelerometer recording, when
-     available, refines the score.</p>
+  <p>Enter the patient's clinical record and measured ankle-brachial index (ABI).
+     The models estimate how likely PAD is; the ABI grades how severe it is. A
+     week of activity-tracker data, when available, sharpens the estimate.</p>
 </header>
 
-<nav class="tabs" role="tablist" aria-label="Input source">
+<nav class="sources" role="tablist" aria-label="Input source">
   <button type="button" role="tab" id="tab-clinical" aria-controls="intake"
-          aria-selected="true">Clinical</button>
+          aria-selected="true">
+    <span class="source-name">Clinical</span>
+  </button>
   <button type="button" role="tab" id="tab-sensor" aria-controls="sensor-intake"
-          aria-selected="false" tabindex="-1">Sensor <span class="tab-note">optional</span></button>
+          aria-selected="false" tabindex="-1">
+    <span class="source-name">Sensor <span class="optional">optional</span></span>
+  </button>
   <button type="button" role="tab" id="tab-medical" aria-controls="panel-medical"
-          aria-selected="false" tabindex="-1">Medical</button>
+          aria-selected="false" tabindex="-1">
+    <span class="source-name">Medical</span>
+  </button>
 </nav>
 
 <main class="workspace">
@@ -39,31 +52,40 @@
       <legend>Person</legend>
       <div class="fields">
         <label class="field">
-          <span>Age</span>
-          <input type="number" name="Age" min="18" max="85" step="1" value="64" required>
+          <span class="field-label">Age</span>
+          <span class="control">
+            <input type="number" name="Age" min="18" max="85" step="1" value="64" required>
+            <span class="unit">years</span>
+          </span>
           <em>18 to 85 years</em>
         </label>
         <label class="field">
-          <span>Sex</span>
-          <select name="Sex" required>
-            <option>Female</option>
-            <option>Male</option>
-          </select>
+          <span class="field-label">Sex</span>
+          <span class="control">
+            <select name="Sex" required>
+              <option>Female</option>
+              <option>Male</option>
+            </select>
+          </span>
         </label>
         <label class="field field-wide">
-          <span>Race or ethnicity</span>
-          <select name="Race" required>
-            <option>Non-Hispanic White</option>
-            <option>Non-Hispanic Black</option>
-            <option>Mexican American</option>
-            <option>Other Hispanic</option>
-            <option>Other/Multi-racial</option>
-          </select>
+          <span class="field-label">Race or ethnicity</span>
+          <span class="control">
+            <select name="Race" required>
+              <option>Non-Hispanic White</option>
+              <option>Non-Hispanic Black</option>
+              <option>Mexican American</option>
+              <option>Other Hispanic</option>
+              <option>Other/Multi-racial</option>
+            </select>
+          </span>
         </label>
         <label class="field">
-          <span>Body mass index</span>
-          <input type="number" name="BMI" min="14" max="60" step="0.1" value="27.5" required>
-          <em>kg/m&sup2;</em>
+          <span class="field-label">Body mass index</span>
+          <span class="control">
+            <input type="number" name="BMI" min="14" max="60" step="0.1" value="27.5" required>
+            <span class="unit">kg/m&sup2;</span>
+          </span>
         </label>
       </div>
     </fieldset>
@@ -72,32 +94,43 @@
       <legend>Blood pressure and lipids</legend>
       <div class="fields">
         <label class="field">
-          <span>Systolic pressure</span>
-          <input type="number" name="SBP" min="70" max="240" step="0.1" value="128" required>
-          <em>mmHg</em>
+          <span class="field-label">Systolic pressure</span>
+          <span class="control">
+            <input type="number" name="SBP" min="70" max="240" step="0.1" value="128" required>
+            <span class="unit">mmHg</span>
+          </span>
         </label>
         <label class="field">
-          <span>Diastolic pressure</span>
-          <input type="number" name="DBP" min="30" max="130" step="0.1" value="76" required>
-          <em>mmHg</em>
+          <span class="field-label">Diastolic pressure</span>
+          <span class="control">
+            <input type="number" name="DBP" min="30" max="130" step="0.1" value="76" required>
+            <span class="unit">mmHg</span>
+          </span>
         </label>
         <label class="field">
-          <span>Total cholesterol</span>
-          <input type="number" name="Total_Cholesterol" min="80" max="500" step="1" value="198" required>
-          <em>mg/dL</em>
+          <span class="field-label">Total cholesterol</span>
+          <span class="control">
+            <input type="number" name="Total_Cholesterol" min="80" max="500" step="1" value="198" required>
+            <span class="unit">mg/dL</span>
+          </span>
         </label>
         <label class="field">
-          <span>HDL cholesterol</span>
-          <input type="number" name="HDL" min="20" max="160" step="1" value="52" required>
-          <em>mg/dL</em>
+          <span class="field-label">HDL cholesterol</span>
+          <span class="control">
+            <input type="number" name="HDL" min="20" max="160" step="1" value="52" required>
+            <span class="unit">mg/dL</span>
+          </span>
         </label>
         <label class="field">
-          <span>HbA1c</span>
-          <input type="number" name="HbA1c" min="3.5" max="19" step="0.1" placeholder="Not measured">
+          <span class="field-label">HbA1c <span class="optional">optional</span></span>
+          <span class="control">
+            <input type="number" name="HbA1c" min="3.5" max="19" step="0.1" placeholder="Not measured">
+            <span class="unit">%</span>
+          </span>
           <em>Enter HbA1c (%) or leave blank if not tested.</em>
         </label>
         <p class="derived field">
-          <span>Cholesterol to HDL ratio</span>
+          <span class="field-label">Cholesterol to HDL ratio</span>
           <output id="ratio" class="readout-number">3.81</output>
           <em>Calculated from the two values above.</em>
         </p>
@@ -106,29 +139,35 @@
 
     <fieldset class="group">
       <legend>History</legend>
-      <div class="fields">
+      <div class="fields fields-three">
         <label class="field">
-          <span>Smoking</span>
-          <select name="Smoking" required>
-            <option>Never</option>
-            <option>Former</option>
-            <option>Current</option>
-          </select>
+          <span class="field-label">Smoking</span>
+          <span class="control">
+            <select name="Smoking" required>
+              <option>Never</option>
+              <option>Former</option>
+              <option>Current</option>
+            </select>
+          </span>
         </label>
         <label class="field">
-          <span>Diabetes</span>
-          <select name="Diabetes" required>
-            <option>No</option>
-            <option>Borderline</option>
-            <option>Yes</option>
-          </select>
+          <span class="field-label">Diabetes</span>
+          <span class="control">
+            <select name="Diabetes" required>
+              <option>No</option>
+              <option>Borderline</option>
+              <option>Yes</option>
+            </select>
+          </span>
         </label>
         <label class="field">
-          <span>Hypertension</span>
-          <select name="Medical_History_Hypertension" required>
-            <option>No</option>
-            <option>Yes</option>
-          </select>
+          <span class="field-label">Hypertension</span>
+          <span class="control">
+            <select name="Medical_History_Hypertension" required>
+              <option>No</option>
+              <option>Yes</option>
+            </select>
+          </span>
         </label>
       </div>
     </fieldset>
@@ -137,8 +176,10 @@
       <legend>Measured ankle-brachial index</legend>
       <div class="fields">
         <label class="field">
-          <span>ABI</span>
-          <input type="number" name="ABI" min="0" max="3" step="0.01" value="1.10" required>
+          <span class="field-label">ABI</span>
+          <span class="control">
+            <input type="number" name="ABI" min="0" max="3" step="0.01" value="1.10" required>
+          </span>
           <em>Lower of the two legs.</em>
         </label>
         <p class="note">The models are trained without ABI. This value grades
@@ -151,40 +192,57 @@
   <form id="sensor-intake" class="intake" role="tabpanel" aria-labelledby="tab-sensor"
         tabindex="0" novalidate hidden>
 
-    <p class="lede">Optional. Fill these in if the patient wore an activity
-       tracker on the hip for a week; otherwise leave every field blank and the
-       screen uses the clinical record alone. Copy each number from the tracker's
-       weekly report, as a daily average; you do not need to work anything out.
-       The tracker scores every minute by how much the wearer moved, and some
-       values below use that score.</p>
+    <div class="lede">
+      <p>Optional. Fill these in if the patient wore an activity tracker on the hip
+         for a week; otherwise leave every field blank and the screen uses the
+         clinical record alone. Copy each number from the tracker's weekly report,
+         as a daily average; you do not need to work anything out. The tracker
+         scores every minute by how much the wearer moved, and some values below
+         use that score.</p>
+      <button type="button" class="link-button" id="clear-sensor" hidden>Clear sensor data</button>
+    </div>
 
     <fieldset class="group">
       <legend>How much the patient moves</legend>
       <div class="fields">
         <label class="field">
-          <span>Daily movement score</span>
-          <input type="number" name="Counts_Per_Day" min="0" max="65000000" step="any" placeholder="e.g. 211000">
-          <em>Tracker's total for a day. Usually 138,000&ndash;280,000.</em>
+          <span class="field-label">Daily movement score</span>
+          <span class="control">
+            <input type="number" name="Counts_Per_Day" min="0" max="65000000" step="any" placeholder="e.g. 211000">
+          </span>
+          <em>Tracker's total for a day. Usually 138,000&#8288;&ndash;&#8288;280,000.</em>
         </label>
         <label class="field">
-          <span>Time spent still</span>
-          <input type="number" name="Sedentary_Percent" min="0" max="100" step="any" placeholder="e.g. 58.5">
-          <em>Percentage of worn time sitting or lying. Usually 51&ndash;67.</em>
+          <span class="field-label">Time spent still</span>
+          <span class="control">
+            <input type="number" name="Sedentary_Percent" min="0" max="100" step="any" placeholder="e.g. 58.5">
+            <span class="unit">%</span>
+          </span>
+          <em>Percentage of worn time sitting or lying. Usually 51&#8288;&ndash;&#8288;67.</em>
         </label>
         <label class="field">
-          <span>Light activity</span>
-          <input type="number" name="Light_Minutes" min="0" max="1440" step="any" placeholder="e.g. 331">
-          <em>Minutes a day of easy movement, like strolling or chores. Usually 263&ndash;397.</em>
+          <span class="field-label">Light activity</span>
+          <span class="control">
+            <input type="number" name="Light_Minutes" min="0" max="1440" step="any" placeholder="e.g. 331">
+            <span class="unit">min</span>
+          </span>
+          <em>Minutes a day of easy movement, like strolling or chores. Usually 263&#8288;&ndash;&#8288;397.</em>
         </label>
         <label class="field">
-          <span>Exercise</span>
-          <input type="number" name="MVPA_Minutes" min="0" max="1440" step="any" placeholder="e.g. 10.9">
-          <em>Minutes a day of brisk walking or harder. Usually 3&ndash;24.</em>
+          <span class="field-label">Exercise</span>
+          <span class="control">
+            <input type="number" name="MVPA_Minutes" min="0" max="1440" step="any" placeholder="e.g. 10.9">
+            <span class="unit">min</span>
+          </span>
+          <em>Minutes a day of brisk walking or harder. Usually 3&#8288;&ndash;&#8288;24.</em>
         </label>
         <label class="field">
-          <span>Exercise without a break</span>
-          <input type="number" name="MVPA_Bout_Minutes" min="0" max="1440" step="any" placeholder="e.g. 0">
-          <em>Exercise minutes done in 10+ minute stretches. Usually 0&ndash;2.</em>
+          <span class="field-label">Exercise without a break</span>
+          <span class="control">
+            <input type="number" name="MVPA_Bout_Minutes" min="0" max="1440" step="any" placeholder="e.g. 0">
+            <span class="unit">min</span>
+          </span>
+          <em>Exercise minutes done in 10+ minute stretches. Usually 0&#8288;&ndash;&#8288;2.</em>
         </label>
       </div>
     </fieldset>
@@ -193,29 +251,40 @@
       <legend>How the patient moves through the day</legend>
       <div class="fields">
         <label class="field">
-          <span>Stopping after moving</span>
-          <input type="number" name="ASTP_Percent" min="0" max="100" step="any" placeholder="e.g. 27.5">
-          <em>Per 100 active minutes, how many end in a rest. Usually 23&ndash;33.</em>
+          <span class="field-label">Stopping after moving</span>
+          <span class="control">
+            <input type="number" name="ASTP_Percent" min="0" max="100" step="any" placeholder="e.g. 27.5">
+          </span>
+          <em>Per 100 active minutes, how many end in a rest. Usually 23&#8288;&ndash;&#8288;33.</em>
         </label>
         <label class="field">
-          <span>Starting after sitting</span>
-          <input type="number" name="SATP_Percent" min="0" max="100" step="any" placeholder="e.g. 19.4">
-          <em>Per 100 sitting minutes, how many end in moving. Usually 15&ndash;23.</em>
+          <span class="field-label">Starting after sitting</span>
+          <span class="control">
+            <input type="number" name="SATP_Percent" min="0" max="100" step="any" placeholder="e.g. 19.4">
+          </span>
+          <em>Per 100 sitting minutes, how many end in moving. Usually 15&#8288;&ndash;&#8288;23.</em>
         </label>
         <label class="field">
-          <span>Most active half hour</span>
-          <input type="number" name="Peak30_Counts" min="0" max="32767" step="any" placeholder="e.g. 1928">
-          <em>Tracker's per-minute score in the busiest 30 minutes. Usually 1,390&ndash;2,490.</em>
+          <span class="field-label">Most active half hour</span>
+          <span class="control">
+            <input type="number" name="Peak30_Counts" min="0" max="32767" step="any" placeholder="e.g. 1928">
+          </span>
+          <em>Tracker's per-minute score in the busiest 30 minutes. Usually 1,390&#8288;&ndash;&#8288;2,490.</em>
         </label>
         <label class="field">
-          <span>Longest active stretch</span>
-          <input type="number" name="Longest_Active_Bout" min="0" max="1440" step="any" placeholder="e.g. 28.8">
-          <em>Longest time moving without a rest, in minutes. Usually 20&ndash;39.</em>
+          <span class="field-label">Longest active stretch</span>
+          <span class="control">
+            <input type="number" name="Longest_Active_Bout" min="0" max="1440" step="any" placeholder="e.g. 28.8">
+            <span class="unit">min</span>
+          </span>
+          <em>Longest time moving without a rest, in minutes. Usually 20&#8288;&ndash;&#8288;39.</em>
         </label>
         <label class="field">
-          <span>Afternoon vs morning</span>
-          <input type="number" name="PM_AM_Ratio" min="0.0001" max="10000" step="any" placeholder="e.g. 1.28">
-          <em>Afternoon movement &divide; morning movement; 1 means equal. Usually 0.95&ndash;1.78.</em>
+          <span class="field-label">Afternoon vs morning</span>
+          <span class="control">
+            <input type="number" name="PM_AM_Ratio" min="0.0001" max="10000" step="any" placeholder="e.g. 1.28">
+          </span>
+          <em>Afternoon movement &divide; morning movement; 1 means equal. Usually 0.95&#8288;&ndash;&#8288;1.78.</em>
         </label>
       </div>
     </fieldset>
@@ -229,14 +298,17 @@
 
   <!-- Outside the tab panels so one button scores from any tab. -->
   <div class="actions">
-    <button type="submit" form="intake" class="run">Run screening</button>
-    <button type="button" class="clear" id="clear">Clear form</button>
-    <p class="error" id="error" hidden></p>
+    <div class="actions-row">
+      <button type="submit" form="intake" class="run">Run screening</button>
+      <button type="button" class="clear" id="clear">Clear form</button>
+      <p class="mode" id="mode" data-state="clinical">Scores with clinical data only.</p>
+    </div>
+    <p class="error" id="error" role="alert" hidden></p>
   </div>
 
   </div>
 
-  <aside class="readout" id="readout" aria-live="polite">
+  <aside class="readout" id="readout" aria-live="polite" aria-label="Screening result">
 
     <div class="placeholder" id="placeholder">
       <svg viewBox="0 0 120 60" class="trace" aria-hidden="true">
@@ -244,18 +316,31 @@
               fill="none" stroke="currentColor" stroke-width="1.5"
               stroke-linejoin="round"/>
       </svg>
-      <p>Results appear here once the record is scored.</p>
+      <p class="placeholder-title">No result yet</p>
+      <p>Check the clinical record, then run the screening. The result shows
+         whether PAD is likely, its severity from the ABI, and how confident
+         the screen is.</p>
     </div>
 
     <div class="result" id="result" hidden>
 
       <div class="verdict" id="verdict">
-        <p class="verdict-label" id="verdict-label">PAD detected</p>
-        <p class="verdict-sub" id="verdict-sub">Ensemble of three clinical models</p>
+        <svg class="verdict-icon icon-detected" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M12 3 2.5 20h19L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+          <path d="M12 10v4.5M12 17.2v.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <svg class="verdict-icon icon-clear" viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="9.5" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="m7.5 12.3 3 3 6-6.3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <div>
+          <p class="verdict-label" id="verdict-label">PAD detected</p>
+          <p class="verdict-sub" id="verdict-sub">Ensemble of three clinical models</p>
+        </div>
       </div>
 
       <section class="panel">
-        <h2>Risk level</h2>
+        <h2>Risk level from the ABI</h2>
         <p class="risk-label" id="risk-label">Normal</p>
         <p class="risk-detail" id="risk-detail"></p>
 

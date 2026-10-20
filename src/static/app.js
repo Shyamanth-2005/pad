@@ -17,6 +17,9 @@ const confidence = document.getElementById("confidence");
 const meterFill = document.getElementById("meter-fill");
 const confidenceNote = document.getElementById("confidence-note");
 const ratio = document.getElementById("ratio");
+const readout = document.getElementById("readout");
+const modeLine = document.getElementById("mode");
+const clearSensorButton = document.getElementById("clear-sensor");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
 const OPTIONAL = new Set(["HbA1c"]);
@@ -73,6 +76,29 @@ function syncSensorRequired() {
   return entered;
 }
 
+function setState(element, state, text) {
+  element.dataset.state = state;
+  element.textContent = text;
+}
+
+// Says, before anyone runs the screening, which data it will use. Display
+// only: the submit handler still decides what is sent.
+function updateMode() {
+  const filled = sensorFields.filter((input) => input.value.trim() !== "").length;
+  clearSensorButton.hidden = filled === 0;
+  if (filled === 0) {
+    setState(modeLine, "clinical", "Scores with clinical data only.");
+  } else if (filled < sensorFields.length) {
+    setState(modeLine, "partial",
+             `Sensor data is incomplete (${filled} of ${sensorFields.length}). ` +
+             "Fill every sensor field or clear them.");
+  } else if (sensorForm.checkValidity()) {
+    setState(modeLine, "fused", "Scores with clinical and sensor data.");
+  } else {
+    setState(modeLine, "partial", "Some sensor values are out of range.");
+  }
+}
+
 function asPercent(fraction) {
   return `${(fraction * 100).toFixed(1)}%`;
 }
@@ -120,7 +146,12 @@ function render(data) {
   confidenceNote.textContent = `How far ${side} the threshold this record scored. ` +
     `Combined probability of PAD: ${asPercent(data.probability)}.`;
 
-  if (window.matchMedia("(max-width: 900px)").matches) {
+  // Restart the reveal so every new result visibly replaces the last one.
+  result.classList.remove("is-fresh");
+  void result.offsetWidth;
+  result.classList.add("is-fresh");
+
+  if (window.matchMedia("(max-width: 960px)").matches) {
     result.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
@@ -134,6 +165,8 @@ async function score(payload, button, problemBox) {
   const label = button.textContent;
   button.disabled = true;
   button.textContent = "Scoring";
+  readout.classList.add("is-busy");
+  readout.setAttribute("aria-busy", "true");
   try {
     const response = await fetch("/api/predict", {
       method: "POST",
@@ -149,6 +182,8 @@ async function score(payload, button, problemBox) {
   } finally {
     button.disabled = false;
     button.textContent = label;
+    readout.classList.remove("is-busy");
+    readout.removeAttribute("aria-busy");
   }
 }
 
@@ -159,6 +194,7 @@ form.addEventListener("input", (event) => {
 });
 
 sensorForm.addEventListener("input", syncSensorRequired);
+sensorForm.addEventListener("input", updateMode);
 
 clearButton.addEventListener("click", () => {
   form.reset();
@@ -166,7 +202,17 @@ clearButton.addEventListener("click", () => {
   syncSensorRequired();
   clearResult();
   errorBox.hidden = true;
-  setTimeout(updateRatio);
+  setTimeout(() => {
+    updateRatio();
+    updateMode();
+  });
+});
+
+clearSensorButton.addEventListener("click", () => {
+  sensorForm.reset();
+  syncSensorRequired();
+  updateMode();
+  sensorFields[0].focus();
 });
 
 // The one Run button submits the clinical form from any tab. A gap in either
@@ -218,3 +264,4 @@ for (const tab of tabs) {
 }
 
 updateRatio();
+updateMode();
