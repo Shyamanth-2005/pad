@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 from src.prediction.ensemble import clinical_frame
+from src.prediction.sensor import SENSOR_MODEL_NAMES, SensorEnsemble
 from src.prediction.fusion import (FUSION_METRICS_CSV, SENSOR_FEATURES, get_fusion,
                                    stacking_design)
 
@@ -57,6 +58,23 @@ def test_thresholds_are_the_deployed_rows(model, subset):
     loaded = fusion.sensor_threshold if model == "masked_stacking" else fusion.clinical_threshold
     assert loaded == pytest.approx(row.threshold.iloc[0], abs=1e-4)
     assert row.sensitivity.iloc[0] >= 0.80
+
+
+def test_sensor_score_is_the_weighted_average_of_all_five_models():
+    sensor = get_fusion().sensor_model
+    assert list(sensor.models) == SENSOR_MODEL_NAMES
+    assert sum(sensor.weights.values()) == pytest.approx(1)
+    assert min(sensor.weights.values()) >= 0
+    frame = pd.DataFrame([ACTIVE])[SENSOR_FEATURES]
+    members = sensor.member_probabilities(frame).iloc[0]
+    expected = sum(sensor.weights[name] * members[name] for name in SENSOR_MODEL_NAMES)
+    assert sensor.predict_proba(frame)[0, 1] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("weights", [{"a": 1.0}, {"a": -0.5, "b": 1.5}, {"a": 0.0, "b": 0.0}])
+def test_sensor_ensemble_rejects_bad_weights(weights):
+    with pytest.raises(ValueError):
+        SensorEnsemble({"a": None, "b": None}, weights)
 
 
 def test_less_activity_raises_sensor_and_fused_risk():

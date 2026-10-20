@@ -7,8 +7,9 @@ Three branch scores feed the fusion layer:
          augmented 50,000-record cohort
     p_r  logistic regression on the same clinical features, fitted on the real
          NHANES 2003-2004 cohort
-    p_s  standardised logistic regression on ten free-living activity features
-         from a seven-day hip accelerometer, present only with a valid recording
+    p_s  weighted ensemble of five models (src/prediction/sensor.py) on ten
+         free-living activity features from a seven-day hip accelerometer,
+         present only with a valid recording
 
 The fusion layer is a logistic stacking model over the branch logits and an
 availability mask m (1 when a valid recording exists):
@@ -32,7 +33,7 @@ MODEL_DIR = ROOT / "src" / "models"
 FUSION_METRICS_CSV = ROOT / "src" / "results" / "sensor" / "fusion_metrics.csv"
 
 COHORT_MODEL_FILE = "nhanes_clinical_logistic_regression.joblib"
-SENSOR_MODEL_FILE = "sensor_logistic_regression.joblib"
+SENSOR_MODEL_FILE = "sensor_ensemble.joblib"
 FUSION_MODEL_FILE = "fusion_stacking.joblib"
 
 # Table 3.2, in the order the sensor pipeline expects.
@@ -72,7 +73,7 @@ def stacking_design(clinical_probability, cohort_probability, sensor_probability
 
 
 class SensorFusion:
-    """Loads the NHANES clinical model, sensor model and stacking layer once."""
+    """Loads the NHANES clinical model, sensor ensemble and stacking layer once."""
 
     def __init__(self, model_dir: Path = MODEL_DIR,
                  metrics_csv: Path = FUSION_METRICS_CSV):

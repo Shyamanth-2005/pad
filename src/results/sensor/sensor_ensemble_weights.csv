@@ -1,0 +1,6 @@
+model,cv_weight_mean,cv_weight_sd,deployed_weight
+logistic_regression,0.6833,0.1334,0.6934
+random_forest,0.1255,0.1383,0.3066
+xgboost,0.158,0.1425,0.0
+lightgbm,0.0104,0.0346,0.0
+catboost,0.0228,0.0531,0.0
