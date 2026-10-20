@@ -201,6 +201,8 @@ function selectTab(tab) {
     other.tabIndex = chosen ? 0 : -1;
     document.getElementById(other.getAttribute("aria-controls")).hidden = !chosen;
   }
+  const panel = document.getElementById(tab.getAttribute("aria-controls"));
+  document.querySelector(".workspace").classList.toggle("on-stub", panel.classList.contains("stub"));
   tab.focus();
 }
 

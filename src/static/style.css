@@ -89,10 +89,25 @@ body {
 
 /* Placeholder panels for sources that are not wired up yet. */
 .stub {
-  padding: 48px 0;
-  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50vh;
 }
-.stub p { margin: 0; color: var(--ink-faint); }
+.stub p {
+  margin: 0;
+  color: var(--ink-faint);
+  font-size: clamp(1.75rem, 5vw, 3rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  text-transform: uppercase;
+}
+/* A placeholder tab has nothing to run and nothing to show, so its panel
+   takes the full width. */
+.workspace.on-stub { grid-template-columns: minmax(0, 1fr); }
+.workspace.on-stub .actions,
+.workspace.on-stub .readout { display: none; }
 
 /* ---------------------------------------------------------- layout */
 
@@ -338,24 +353,13 @@ button {
 }
 .confidence-note { margin: 0; font-size: 0.82rem; color: var(--ink-soft); max-width: 40ch; }
 
-/* ---------------------------------------------------------- footer */
-
-.footnote {
-  max-width: 1120px;
-  margin: 0 auto;
-  padding: 8px 32px 48px;
-  color: var(--ink-faint);
-  font-size: 0.8rem;
-}
-.footnote p { margin: 0; }
-
 /* ---------------------------------------------------------- responsive */
 
 @media (max-width: 900px) {
   .workspace { grid-template-columns: minmax(0, 1fr); }
   .readout { position: static; }
   .masthead { padding: 36px 20px 18px; }
-  .workspace, .footnote, .tabs { padding-inline: 20px; }
+  .workspace, .tabs { padding-inline: 20px; }
 }
 @media (max-width: 520px) {
   .fields { grid-template-columns: minmax(0, 1fr); }
