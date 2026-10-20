@@ -156,6 +156,8 @@ body {
   color: var(--ink-faint);
   line-height: 1.35;
 }
+/* The typical range sits on its own line under the description. */
+.field em .typical { display: block; }
 
 input, select {
   font: inherit;
