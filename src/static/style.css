@@ -459,7 +459,7 @@ button { font: inherit; }
   display: flex;
   align-items: center;
   gap: var(--s4);
-  padding: var(--s6);
+  padding: var(--s6) var(--s6) var(--s8);
   background: var(--ink);
   color: #fff;
 }
@@ -624,7 +624,8 @@ button { font: inherit; }
   .sources [role="tab"] { padding: 10px var(--s3); }
   .workspace { padding: var(--s4) var(--s4) var(--s8); gap: var(--s6); }
   .group, .lede { padding: var(--s5) var(--s4); }
-  .panel, .verdict { padding: var(--s5); }
+  .panel { padding: var(--s5); }
+  .verdict { padding: var(--s5) var(--s5) var(--s6); }
   .fields, .fields-three { grid-template-columns: minmax(0, 1fr); }
   .run { flex: 1; justify-content: center; }
 }
