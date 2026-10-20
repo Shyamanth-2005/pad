@@ -27,13 +27,13 @@ import numpy as np
 import pandas as pd
 
 from src.prediction.ensemble import clinical_frame, decision_confidence
+from src.prediction.sensor import load_sensor_ensemble
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL_DIR = ROOT / "src" / "models"
 FUSION_METRICS_CSV = ROOT / "src" / "results" / "sensor" / "fusion_metrics.csv"
 
 COHORT_MODEL_FILE = "nhanes_clinical_logistic_regression.joblib"
-SENSOR_MODEL_FILE = "sensor_ensemble.joblib"
 FUSION_MODEL_FILE = "fusion_stacking.joblib"
 
 # Table 3.2, in the order the sensor pipeline expects.
@@ -77,16 +77,15 @@ class SensorFusion:
 
     def __init__(self, model_dir: Path = MODEL_DIR,
                  metrics_csv: Path = FUSION_METRICS_CSV):
-        paths = [model_dir / COHORT_MODEL_FILE, model_dir / SENSOR_MODEL_FILE,
-                 model_dir / FUSION_MODEL_FILE, metrics_csv]
+        paths = [model_dir / COHORT_MODEL_FILE, model_dir / FUSION_MODEL_FILE, metrics_csv]
         missing = [path.name for path in paths if not path.exists()]
         if missing:
             raise FileNotFoundError(
                 f"Missing fusion artefact(s): {', '.join(missing)}. "
                 "Run src/train/train_sensor.py first.")
         self.cohort_model = joblib.load(paths[0])
-        self.sensor_model = joblib.load(paths[1])
-        self.stacking_model = joblib.load(paths[2])
+        self.sensor_model = load_sensor_ensemble(model_dir)
+        self.stacking_model = joblib.load(paths[1])
         self.clinical_threshold = self._load_threshold(metrics_csv, CLINICAL_THRESHOLD_MODEL)
         self.sensor_threshold = self._load_threshold(metrics_csv, SENSOR_THRESHOLD_MODEL)
 

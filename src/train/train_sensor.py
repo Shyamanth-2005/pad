@@ -75,9 +75,9 @@ sys.path.insert(0, str(ROOT))
 from src.prediction.ensemble import (CATEGORICAL_FEATURES, FEATURES,  # noqa: E402
                                      NUMERIC_FEATURES, get_ensemble)
 from src.prediction.fusion import (COHORT_MODEL_FILE, FUSION_MODEL_FILE,  # noqa: E402
-                                   SENSOR_FEATURES, SENSOR_MODEL_FILE, logit,
-                                   stacking_design)
-from src.prediction.sensor import SENSOR_MODEL_NAMES, SensorEnsemble  # noqa: E402
+                                   SENSOR_FEATURES, logit, stacking_design)
+from src.prediction.sensor import (SENSOR_MODEL_NAMES, SensorEnsemble,  # noqa: E402
+                                   save_sensor_ensemble)
 
 warnings.filterwarnings("ignore")
 SEED = 42
@@ -548,7 +548,7 @@ features.round(4).to_csv(RESULTS / "sensor_feature_summary.csv", index=False)
 
 cohort_model, sensor_model, stacking_model, _ = fit_fusion(ALL, X_sensor, SEED)
 joblib.dump(cohort_model, MODEL_DIR / COHORT_MODEL_FILE, compress=3)
-joblib.dump(sensor_model, MODEL_DIR / SENSOR_MODEL_FILE, compress=3)
+save_sensor_ensemble(sensor_model, MODEL_DIR)
 joblib.dump(stacking_model, MODEL_DIR / FUSION_MODEL_FILE, compress=3)
 
 coef = sensor_model.models["logistic_regression"].named_steps["clf"].coef_[0]

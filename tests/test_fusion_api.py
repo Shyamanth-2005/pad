@@ -1,3 +1,6 @@
+import json
+
+import joblib
 import numpy as np
 import pandas as pd
 import pytest
@@ -5,7 +8,9 @@ from fastapi.testclient import TestClient
 
 from src.api.main import app
 from src.prediction.ensemble import clinical_frame
-from src.prediction.sensor import SENSOR_MODEL_NAMES, SensorEnsemble
+from src.prediction.fusion import MODEL_DIR
+from src.prediction.sensor import (SENSOR_MODEL_FILES, SENSOR_MODEL_NAMES,
+                                   SENSOR_WEIGHTS_FILE, SensorEnsemble)
 from src.prediction.fusion import (FUSION_METRICS_CSV, SENSOR_FEATURES, get_fusion,
                                    stacking_design)
 
@@ -69,6 +74,19 @@ def test_sensor_score_is_the_weighted_average_of_all_five_models():
     members = sensor.member_probabilities(frame).iloc[0]
     expected = sum(sensor.weights[name] * members[name] for name in SENSOR_MODEL_NAMES)
     assert sensor.predict_proba(frame)[0, 1] == pytest.approx(expected)
+
+
+@pytest.mark.parametrize("name", SENSOR_MODEL_NAMES)
+def test_each_sensor_model_is_its_own_file(name):
+    model = joblib.load(MODEL_DIR / SENSOR_MODEL_FILES[name])
+    frame = pd.DataFrame([ACTIVE])[SENSOR_FEATURES]
+    assert 0 <= model.predict_proba(frame)[0, 1] <= 1
+
+
+def test_ensemble_uses_the_saved_weights():
+    saved = json.loads((MODEL_DIR / SENSOR_WEIGHTS_FILE).read_text(encoding="utf-8"))
+    assert set(saved) == set(SENSOR_MODEL_NAMES)
+    assert get_fusion().sensor_model.weights == pytest.approx(saved)
 
 
 @pytest.mark.parametrize("weights", [{"a": 1.0}, {"a": -0.5, "b": 1.5}, {"a": 0.0, "b": 0.0}])

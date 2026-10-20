@@ -119,10 +119,12 @@ Implements Sections 3.6–3.8 of the project report. Three parts:
 2. **Sensor ensemble.** Five models are each trained on the ten features:
    logistic regression, random forest, XGBoost, LightGBM and CatBoost. Their
    probabilities are averaged with non-negative weights that sum to 1 to give
-   `p_s` (`src/prediction/sensor.py`). Inside every training fold the weights are
-   learned from the five models' out-of-fold validation scores, choosing the
-   blend with the lowest log loss, so a model that validates poorly gets little
-   say. The settings are fixed in advance rather than tuned, because 175 PAD
+   `p_s` (`src/prediction/sensor.py`). Each fitted model is saved to its own file
+   in `src/models/`; at prediction time all five score the patient and their
+   decisions are combined with the saved weights. Inside every training fold the
+   weights are learned from the five models' out-of-fold validation scores,
+   choosing the blend with the lowest log loss, so a model that validates poorly
+   gets little say. The settings are fixed in advance rather than tuned, because 175 PAD
    cases are too few to tune on without fitting noise.
 
    Each model's own test results, on participants with a recording:
@@ -341,12 +343,12 @@ src/
 ├─ prediction/
 │  ├─ ensemble.py      loads the three pipelines, soft-vote
 │  ├─ fusion.py        NHANES clinical model, masked stacking, thresholds
-│  ├─ sensor.py        five-model weighted sensor ensemble
+│  ├─ sensor.py        loads the five sensor models, combines them by weight
 │  └─ abi.py           ABI band lookup and reference table
 ├─ templates/
 │  └─ index.html       intake form and result readout
 ├─ static/             style.css, app.js
-├─ models/             clinical pipelines, NHANES clinical model, sensor ensemble, stacking layer
+├─ models/             clinical pipelines, NHANES clinical model, five sensor models + weights, stacking layer
 ├─ data/               PAD_dataset_50000.csv, PAD_nhanes_2003_2004_sensor.csv
 ├─ results/            clinical metrics, importances, figures
 │  └─ sensor/          REPORT.md, per-model comparison, fusion metrics, figures
@@ -460,7 +462,10 @@ The first command downloads the NHANES 2003–2004 files into `src/data/nhanes_r
 fits the NHANES clinical model, the sensor branch and the fusion layer on top of
 the current ensemble, and sets both thresholds. Run it again whenever the
 clinical pipelines change. It writes `nhanes_clinical_logistic_regression.joblib`,
-`sensor_ensemble.joblib` and `fusion_stacking.joblib` to `src/models/`, and its
+one file per sensor model (`sensor_logistic_regression.joblib`,
+`sensor_random_forest.joblib`, `sensor_xgboost.joblib`, `sensor_lightgbm.joblib`,
+`sensor_catboost.joblib`), their weights in `sensor_ensemble_weights.json`, and
+`fusion_stacking.joblib` to `src/models/`, and its
 results, figures and `REPORT.md` to `src/results/sensor/`. Outer folds run in
 parallel on every core (`N_JOBS` in the script). The API picks up new models and
 thresholds on the next restart.
