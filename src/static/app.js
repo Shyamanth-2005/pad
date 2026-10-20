@@ -8,17 +8,14 @@ const placeholder = document.getElementById("placeholder");
 const result = document.getElementById("result");
 const verdict = document.getElementById("verdict");
 const verdictLabel = document.getElementById("verdict-label");
-const verdictSub = document.getElementById("verdict-sub");
 const riskLabel = document.getElementById("risk-label");
 const riskDetail = document.getElementById("risk-detail");
 const needle = document.getElementById("needle");
 const needleValue = document.getElementById("needle-value");
 const confidence = document.getElementById("confidence");
 const meterFill = document.getElementById("meter-fill");
-const confidenceNote = document.getElementById("confidence-note");
 const ratio = document.getElementById("ratio");
 const readout = document.getElementById("readout");
-const modeLine = document.getElementById("mode");
 const clearSensorButton = document.getElementById("clear-sensor");
 
 // Fields the pipelines impute when absent. Blank means "not known", not zero.
@@ -76,27 +73,9 @@ function syncSensorRequired() {
   return entered;
 }
 
-function setState(element, state, text) {
-  element.dataset.state = state;
-  element.textContent = text;
-}
-
-// Says, before anyone runs the screening, which data it will use. Display
-// only: the submit handler still decides what is sent.
-function updateMode() {
-  const filled = sensorFields.filter((input) => input.value.trim() !== "").length;
-  clearSensorButton.hidden = filled === 0;
-  if (filled === 0) {
-    setState(modeLine, "clinical", "Scores with clinical data only.");
-  } else if (filled < sensorFields.length) {
-    setState(modeLine, "partial",
-             `Sensor data is incomplete (${filled} of ${sensorFields.length}). ` +
-             "Fill every sensor field or clear them.");
-  } else if (sensorForm.checkValidity()) {
-    setState(modeLine, "fused", "Scores with clinical and sensor data.");
-  } else {
-    setState(modeLine, "partial", "Some sensor values are out of range.");
-  }
+// "Clear sensor data" only appears once there is something to clear.
+function updateClearSensor() {
+  clearSensorButton.hidden = sensorFields.every((input) => input.value.trim() === "");
 }
 
 function asPercent(fraction) {
@@ -117,13 +96,7 @@ function render(data) {
 
   verdict.classList.toggle("is-detected", data.pad_detected);
   verdict.classList.toggle("is-clear", !data.pad_detected);
-  const fused = data.modalities.includes("sensor");
   verdictLabel.textContent = data.verdict;
-  const basis = fused ? "Clinical and sensor data" : "Clinical data only";
-  const cutoff = asPercent(data.threshold);
-  verdictSub.textContent = data.pad_detected
-    ? `${basis}. Scored above the ${cutoff} screening threshold.`
-    : `${basis}. Scored below the ${cutoff} screening threshold.`;
 
   riskLabel.textContent = data.risk.label;
   riskLabel.className = `risk-label band-${data.risk.band}`;
@@ -142,9 +115,6 @@ function render(data) {
 
   confidence.textContent = asPercent(data.confidence);
   meterFill.style.width = `${data.confidence * 100}%`;
-  const side = data.pad_detected ? "above" : "below";
-  confidenceNote.textContent = `How far ${side} the threshold this record scored. ` +
-    `Combined probability of PAD: ${asPercent(data.probability)}.`;
 
   // Restart the reveal so every new result visibly replaces the last one.
   result.classList.remove("is-fresh");
@@ -194,7 +164,7 @@ form.addEventListener("input", (event) => {
 });
 
 sensorForm.addEventListener("input", syncSensorRequired);
-sensorForm.addEventListener("input", updateMode);
+sensorForm.addEventListener("input", updateClearSensor);
 
 clearButton.addEventListener("click", () => {
   form.reset();
@@ -204,14 +174,14 @@ clearButton.addEventListener("click", () => {
   errorBox.hidden = true;
   setTimeout(() => {
     updateRatio();
-    updateMode();
+    updateClearSensor();
   });
 });
 
 clearSensorButton.addEventListener("click", () => {
   sensorForm.reset();
   syncSensorRequired();
-  updateMode();
+  updateClearSensor();
   sensorFields[0].focus();
 });
 
@@ -264,4 +234,4 @@ for (const tab of tabs) {
 }
 
 updateRatio();
-updateMode();
+updateClearSensor();
